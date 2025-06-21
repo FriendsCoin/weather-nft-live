@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WeatherNFT.live - Premium Weather NFT Marketplace</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+        :root {
+            /* AnimaApp inspired colors */
+            --bg-dark: #2b2b2b;
+            --bg-card: #3b3b3b;
+            --text-white: #ffffff;
+            --text-gray: #858584;
+            --accent-purple: #a259ff;
+            --accent-green: #00d4aa;
+            
+            /* Weather theme colors */
+            --weather-blue: #06b6d4;
+            --weather-emerald: #10b981;
+            --weather-amber: #f59e0b;
+            --weather-violet: #8b5cf6;
+            
+            /* Gradients */
+            --gradient-primary: linear-gradient(135deg, var(--accent-purple) 0%, var(--weather-blue) 100%);
+            --gradient-weather: linear-gradient(135deg, var(--weather-emerald) 0%, var(--weather-blue) 100%);
+            --gradient-warm: linear-gradient(135deg, var(--weather-amber) 0%, var(--accent-purple) 100%);
+            
+            /* Typography */
+            --font-primary: 'Work Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'Space Mono', Monaco, 'Cascadia Code', monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: var(--font-primary);
+            background: var(--bg-dark);
+            color: var(--text-white);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Animated Background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: 
+                radial-gradient(circle at 20% 20%, rgba(162, 89, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(16, 185, 129, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 60%, rgba(6, 182, 212, 0.05) 0%, transparent 70%);
+            animation: backgroundPulse 10s ease-in-out infinite;
+            z-index: -1;
+        }
+
+        @keyframes backgroundPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* Navigation */
+        .navigation {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 100px;
+            background: rgba(43, 43, 43, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 4%;
+            z-index: 1000;
+        }
+
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+        }
+
+        .logo-icon {
+            font-size: 2rem;
+            background: var(--gradient-weather);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .logo-text {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-white);
+        }
+
+        .nav-menu {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .nav-item {
+            color: var(--text-white);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1rem;
+            padding: 0.75rem 1.5rem;
+            border-radius: 20px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-item:hover {
+            background: rgba(162, 89, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .nav-item.active {
+            background: var(--gradient-primary);
+            color: white;
+        }
+
+        .wallet-connect {
+            background: var(--gradient-primary);
+            color: white;
+            border: none;
+            padding: 0.875rem 2rem;
+            border-radius: 20px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .wallet-connect:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(162, 89, 255, 0.3);
+        }
+
+        /* Hero Section */
+        .hero-section {
+            margin-top: 100px;
+            padding: 5rem 4% 3rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: center;
+            min-height: 600px;
+        }
+
+        .hero-content h1 {
+            font-size: 4.5rem;
+            font-weight: 700;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            background: var(--gradient-weather);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-content p {
+            font-size: 1.375rem;
+            color: var(--text-gray);
+            margin-bottom: 2rem;
+            line-height: 1.5;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 3rem;
+        }
+
+        .btn-primary {
+            background: var(--gradient-primary);
+            color: white;
+            border: none;
+            padding: 1rem 2.5rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-decoration: none;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(162, 89, 255, 0.4);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-white);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            padding: 1rem 2.5rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--accent-purple);
+            background: rgba(162, 89, 255, 0.1);
+            transform: translateY(-3px);
+        }
+
+        .hero-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-family: var(--font-mono);
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-white);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: var(--text-gray);
+            font-size: 1rem;
+        }
+
+        .hero-visual {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .featured-nft {
+            width: 100%;
+            max-width: 500px;
+            aspect-ratio: 1;
+            background: var(--gradient-weather);
+            border-radius: 30px;
+            position: relative;
+            overflow: hidden;
+            animation: float 6s ease-in-out infinite;
+            box-shadow: 0 20px 60px rgba(16, 185, 129, 0.3);
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(2deg); }
+        }
+
+        .featured-nft::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="weather" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="2" fill="rgba(255,255,255,0.1)"/></pattern></defs><rect width="100" height="100" fill="url(%23weather)"/></svg>') center/cover;
+            animation: pulse 4s ease-in-out infinite;
+        }
+
+        .featured-nft-content {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .featured-nft h3 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .featured-nft p {
+            font-size: 1.125rem;
+            opacity: 0.9;
+        }
+
+        /* Trending Section */
+        .trending-section {
+            padding: 5rem 4%;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+
+        .section-title {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--text-white);
+        }
+
+        .section-subtitle {
+            font-size: 1.25rem;
+            color: var(--text-gray);
+        }
+
+        .weather-events-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .weather-event-card {
+            background: var(--bg-card);
+            border-radius: 20px;
+            overflow: hidden;
+            transition: all 0.4s ease;
+            position: relative;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .weather-event-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+            border-color: var(--accent-purple);
+        }
+
+        .event-image {
+            width: 100%;
+            height: 240px;
+            background: var(--gradient-weather);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .event-image::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
+            animation: shimmer 3s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .event-rarity {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            backdrop-filter: blur(10px);
+        }
+
+        .rarity-legendary {
+            background: rgba(245, 158, 11, 0.9);
+            color: white;
+            animation: legendaryGlow 2s ease-in-out infinite;
+        }
+
+        .rarity-epic {
+            background: rgba(139, 92, 246, 0.9);
+            color: white;
+        }
+
+        .rarity-rare {
+            background: rgba(59, 130, 246, 0.9);
+            color: white;
+        }
+
+        @keyframes legendaryGlow {
+            0%, 100% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.5); }
+            50% { box-shadow: 0 0 30px rgba(245, 158, 11, 0.8); }
+        }
+
+        .event-info {
+            padding: 1.5rem;
+        }
+
+        .event-title {
+            font-size: 1.375rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            color: var(--text-white);
+        }
+
+        .event-creator {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .creator-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--gradient-primary);
+        }
+
+        .creator-name {
+            font-family: var(--font-mono);
+            color: var(--text-gray);
+            font-size: 0.875rem;
+        }
+
+        .event-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .detail-group {
+            text-align: center;
+        }
+
+        .detail-label {
+            font-family: var(--font-mono);
+            color: var(--text-gray);
+            font-size: 0.75rem;
+            margin-bottom: 0.25rem;
+            text-transform: uppercase;
+        }
+
+        .detail-value {
+            font-family: var(--font-mono);
+            color: var(--text-white);
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        /* How It Works */
+        .how-it-works {
+            padding: 5rem 4%;
+            background: rgba(59, 59, 59, 0.3);
+        }
+
+        .steps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .step-card {
+            background: var(--bg-card);
+            padding: 2rem;
+            border-radius: 20px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .step-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent-purple);
+        }
+
+        .step-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 1.5rem;
+            background: var(--gradient-primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+        }
+
+        .step-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--text-white);
+        }
+
+        .step-description {
+            color: var(--text-gray);
+            line-height: 1.6;
+        }
+
+        /* Footer */
+        .footer {
+            padding: 4rem 4% 2rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .footer-content {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 3rem;
+            margin-bottom: 3rem;
+        }
+
+        .footer-brand h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .footer-brand p {
+            color: var(--text-gray);
+            margin-bottom: 1.5rem;
+        }
+
+        .social-links {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .social-link {
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-white);
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .social-link:hover {
+            background: var(--accent-purple);
+            transform: translateY(-2px);
+        }
+
+        .footer-section h4 {
+            margin-bottom: 1rem;
+            color: var(--text-white);
+        }
+
+        .footer-section a {
+            display: block;
+            color: var(--text-gray);
+            text-decoration: none;
+            margin-bottom: 0.5rem;
+            transition: color 0.3s ease;
+        }
+
+        .footer-section a:hover {
+            color: var(--accent-purple);
+        }
+
+        .footer-bottom {
+            text-align: center;
+            padding-top: 2rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-gray);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero-section {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+                text-align: center;
+            }
+
+            .hero-content h1 {
+                font-size: 3rem;
+            }
+
+            .nav-menu {
+                display: none;
+            }
+
+            .weather-events-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .footer-content {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navigation">
+        <a href="#" class="nav-logo">
+            <div class="logo-icon">🌦️</div>
+            <div class="logo-text">WeatherNFT</div>
+        </a>
+        
+        <div class="nav-menu">
+            <a href="#" class="nav-item active">Marketplace</a>
+            <a href="#" class="nav-item">Rankings</a>
+            <a href="/events" class="nav-item">Live Events</a>
+            <a href="/admin" class="nav-item">Admin</a>
+            <button class="wallet-connect" onclick="connectWallet()">
+                🔗 Connect Wallet
+            </button>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="hero-content">
+            <h1>Discover Unique Weather Moments & Collect NFTs</h1>
+            <p>WeatherNFT Marketplace powered by advanced AI algorithms. Collect, buy and sell rare weather events from around the world.</p>
+            
+            <div class="hero-buttons">
+                <a href="/events" class="btn-primary">
+                    🚀 Get Started
+                </a>
+                <a href="/purchase" class="btn-secondary">
+                    ⚡ Explore Events
+                </a>
+            </div>
+            
+            <div class="hero-stats">
+                <div class="stat-item">
+                    <div class="stat-number" id="total-sales">240k+</div>
+                    <div class="stat-label">Weather Events</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="total-nfts">15k+</div>
+                    <div class="stat-label">NFTs Minted</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="total-users">5k+</div>
+                    <div class="stat-label">Collectors</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="hero-visual">
+            <div class="featured-nft">
+                <div class="featured-nft-content">
+                    <h3>⚡ Legendary Storm</h3>
+                    <p>AI-Predicted Weather Event</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Trending Weather Events -->
+    <section class="trending-section">
+        <div class="section-header">
+            <h2 class="section-title">Trending Weather Events</h2>
+            <p class="section-subtitle">Discover the most sought-after weather NFTs captured by our AI</p>
+        </div>
+
+        <div class="weather-events-grid" id="weather-events">
+            <!-- Dynamic content will be loaded here -->
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="how-it-works">
+        <div class="section-header">
+            <h2 class="section-title">How It Works</h2>
+            <p class="section-subtitle">Start your weather NFT collection in 3 simple steps</p>
+        </div>
+
+        <div class="steps-grid">
+            <div class="step-card">
+                <div class="step-icon">🔗</div>
+                <h3 class="step-title">Connect Your Wallet</h3>
+                <p class="step-description">Set up your Tezos wallet. Connect it to WeatherNFT by clicking the wallet icon in the navigation.</p>
+            </div>
+
+            <div class="step-card">
+                <div class="step-icon">⚡</div>
+                <h3 class="step-title">Explore Weather Events</h3>
+                <p class="step-description">Browse AI-predicted weather events. Each event has unique rarity and characteristics powered by our 5 algorithms.</p>
+            </div>
+
+            <div class="step-card">
+                <div class="step-icon">💎</div>
+                <h3 class="step-title">Collect & Trade</h3>
+                <p class="step-description">Purchase rare weather moments and build your collection. Trade with other collectors on our marketplace.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-brand">
+                <h3>🌦️ WeatherNFT</h3>
+                <p>The world's first AI-powered weather NFT marketplace. Collect unique meteorological moments verified by advanced algorithms.</p>
+                <div class="social-links">
+                    <a href="#" class="social-link">📱</a>
+                    <a href="#" class="social-link">🐦</a>
+                    <a href="#" class="social-link">📺</a>
+                    <a href="#" class="social-link">💬</a>
+                </div>
+            </div>
+
+            <div class="footer-section">
+                <h4>Explore</h4>
+                <a href="/events">Live Events</a>
+                <a href="/purchase">Marketplace</a>
+                <a href="/admin">Rankings</a>
+                <a href="#">AI Models</a>
+            </div>
+
+            <div class="footer-section">
+                <h4>Resources</h4>
+                <a href="#">How It Works</a>
+                <a href="#">API Docs</a>
+                <a href="#">Smart Contracts</a>
+                <a href="#">Support</a>
+            </div>
+
+            <div class="footer-section">
+                <h4>Company</h4>
+                <a href="#">About</a>
+                <a href="#">Blog</a>
+                <a href="#">Careers</a>
+                <a href="#">Contact</a>
+            </div>
+        </div>
+
+        <div class="footer-bottom">
+            <p>© 2025 WeatherNFT. Powered by advanced AI weather prediction algorithms.</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/@taquito/taquito@latest/dist/taquito.min.js"></script>
+    <script src="https://unpkg.com/@taquito/beacon-wallet@latest/dist/index.umd.js"></script>
+    <script>
+        // Wallet Integration
+        const { BeaconWallet } = window.beacon;
+        const { TezosToolkit } = window.taquito;
+        
+        const Tezos = new TezosToolkit('https://ghostnet.ecadinfra.com');
+        const wallet = new BeaconWallet({ name: 'WeatherNFT Marketplace' });
+        Tezos.setWalletProvider(wallet);
+        
+        let userAddress = null;
+
+        async function connectWallet() {
+            try {
+                await wallet.requestPermissions({
+                    network: { type: 'ghostnet' }
+                });
+                
+                userAddress = await wallet.getPKH();
+                const balance = await Tezos.tz.getBalance(userAddress);
+                const balanceInTez = balance.dividedBy(1000000).toFixed(2);
+                
+                document.querySelector('.wallet-connect').innerHTML = `
+                    ✅ ${userAddress.slice(0, 6)}...${userAddress.slice(-4)} (${balanceInTez} XTZ)
+                `;
+                
+                showNotification('Wallet connected successfully!', 'success');
+                
+            } catch (error) {
+                console.error('Wallet connection failed:', error);
+                showNotification('Failed to connect wallet', 'error');
+            }
+        }
+
+        // Load Weather Events
+        async function loadWeatherEvents() {
+            try {
+                const response = await fetch('http://localhost:3006/api/events');
+                const data = await response.json();
+                
+                if (data.success && data.data.length > 0) {
+                    displayWeatherEvents(data.data.slice(0, 6)); // Show first 6 events
+                }
+            } catch (error) {
+                console.error('Failed to load events:', error);
+                generateMockEvents();
+            }
+        }
+
+        function displayWeatherEvents(events) {
+            const container = document.getElementById('weather-events');
+            
+            container.innerHTML = events.map(event => `
+                <div class="weather-event-card">
+                    <div class="event-image">
+                        <div class="event-rarity rarity-${event.rarity}">${event.rarity}</div>
+                    </div>
+                    <div class="event-info">
+                        <h3 class="event-title">${event.uniqueName}</h3>
+                        <div class="event-creator">
+                            <div class="creator-avatar"></div>
+                            <span class="creator-name">${event.aiAlgorithm}</span>
+                        </div>
+                        <div class="event-details">
+                            <div class="detail-group">
+                                <div class="detail-label">Price</div>
+                                <div class="detail-value">${event.price} Credits</div>
+                            </div>
+                            <div class="detail-group">
+                                <div class="detail-label">Confidence</div>
+                                <div class="detail-value">${(event.confidence * 100).toFixed(1)}%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function generateMockEvents() {
+            const mockEvents = [
+                {
+                    uniqueName: "Aurora Storm #4521", 
+                    rarity: "legendary", 
+                    price: 25, 
+                    confidence: 0.95,
+                    aiAlgorithm: "AuroraPredictor-v3"
+                },
+                {
+                    uniqueName: "Thunder Valley #1203", 
+                    rarity: "epic", 
+                    price: 15, 
+                    confidence: 0.88,
+                    aiAlgorithm: "StormChaser-v4"
+                },
+                {
+                    uniqueName: "Thermal Anomaly #8847", 
+                    rarity: "rare", 
+                    price: 8, 
+                    confidence: 0.92,
+                    aiAlgorithm: "ThermalDrift-v2"
+                },
+                {
+                    uniqueName: "Monsoon Wave #3341", 
+                    rarity: "epic", 
+                    price: 18, 
+                    confidence: 0.87,
+                    aiAlgorithm: "AquaDetect-v2"
+                },
+                {
+                    uniqueName: "Desert Mirage #9982", 
+                    rarity: "rare", 
+                    price: 12, 
+                    confidence: 0.91,
+                    aiAlgorithm: "EcoBalance-v1"
+                },
+                {
+                    uniqueName: "Polar Vortex #2156", 
+                    rarity: "legendary", 
+                    price: 35, 
+                    confidence: 0.97,
+                    aiAlgorithm: "ThermalDrift-v2"
+                }
+            ];
+            
+            displayWeatherEvents(mockEvents);
+        }
+
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 120px;
+                right: 2rem;
+                padding: 1rem 1.5rem;
+                background: ${type === 'success' ? '#10b981' : '#ef4444'};
+                color: white;
+                border-radius: 12px;
+                z-index: 10000;
+                animation: slideIn 0.3s ease-out;
+                font-weight: 500;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => notification.remove(), 3000);
+        }
+
+        // Stats Animation
+        function animateStats() {
+            const stats = document.querySelectorAll('.stat-number');
+            stats.forEach(stat => {
+                const target = stat.textContent.replace(/[^\d]/g, '');
+                if (target) {
+                    let current = 0;
+                    const increment = Math.ceil(target / 50);
+                    const timer = setInterval(() => {
+                        current += increment;
+                        if (current >= target) {
+                            current = target;
+                            clearInterval(timer);
+                        }
+                        stat.textContent = current + (stat.textContent.includes('k') ? 'k+' : '+');
+                    }, 50);
+                }
+            });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadWeatherEvents();
+            setTimeout(animateStats, 1000);
+        });
+    </script>
+</body>
+</html>

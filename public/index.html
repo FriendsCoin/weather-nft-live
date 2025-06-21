@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather NFT Live - AI Weather Prediction NFTs</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            text-align: center;
+            max-width: 800px;
+        }
+        h1 {
+            font-size: 3em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .subtitle {
+            font-size: 1.2em;
+            margin-bottom: 40px;
+            opacity: 0.9;
+        }
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 40px 0;
+        }
+        .feature {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+        .nav-buttons {
+            margin-top: 40px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 15px 30px;
+            margin: 10px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 25px;
+            border: 2px solid rgba(255,255,255,0.3);
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+        .btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+        .status {
+            margin-top: 30px;
+            padding: 15px;
+            background: rgba(0,255,0,0.2);
+            border-radius: 10px;
+            border: 1px solid rgba(0,255,0,0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌦️ Weather NFT Live</h1>
+        <div class="subtitle">
+            AI-Powered Weather Prediction NFTs with Real PyTorch Integration
+        </div>
+        
+        <div class="features">
+            <div class="feature">
+                <h3>🧠 Real AI</h3>
+                <p>PyTorch LSTM with RTX 2080 GPU acceleration</p>
+            </div>
+            <div class="feature">
+                <h3>🌍 Live Data</h3>
+                <p>Real-time weather events from global sources</p>
+            </div>
+            <div class="feature">
+                <h3>💎 Unique NFTs</h3>
+                <p>Each weather event becomes a tradeable asset</p>
+            </div>
+            <div class="feature">
+                <h3>⚡ Fast & Eco</h3>
+                <p>Tezos blockchain for sustainable trading</p>
+            </div>
+        </div>
+
+        <div class="nav-buttons">
+            <a href="/marketplace-inspired.html" class="btn">🏪 Marketplace</a>
+            <a href="/admin-futuristic.html" class="btn">👨‍💼 Admin Panel</a>
+            <a href="/test-purchase.html" class="btn">🧪 Test Purchase</a>
+        </div>
+
+        <div class="status">
+            ✅ Deployed on Vercel | 🧠 AI Ready | 🔗 Blockchain Connected
+        </div>
+    </div>
+
+    <script>
+        // Add some animation
+        document.addEventListener('DOMContentLoaded', function() {
+            const features = document.querySelectorAll('.feature');
+            features.forEach((feature, index) => {
+                feature.style.opacity = '0';
+                feature.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    feature.style.transition = 'all 0.6s ease';
+                    feature.style.opacity = '1';
+                    feature.style.transform = 'translateY(0)';
+                }, index * 200);
+            });
+        });
+    </script>
+</body>
+</html>

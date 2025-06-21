@@ -1,9 +1,11 @@
 {
   "version": 2,
+  "buildCommand": "echo 'Static build complete'",
+  "outputDirectory": "public",
   "rewrites": [
     {
       "source": "/",
-      "destination": "/marketplace-inspired.html"
+      "destination": "/index.html"
     }
   ]
 }
