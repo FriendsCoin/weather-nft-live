@@ -60,3 +60,5 @@ archive/
 # Local development
 .vercel
 node_modules
+
+.vercel
