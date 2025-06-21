@@ -1,0 +1,46 @@
+# WeatherNFT.live PyTorch Dependencies
+
+# Core PyTorch and ML
+torch>=2.0.0
+torchvision>=0.15.0
+numpy>=1.21.0
+pandas>=1.3.0
+scikit-learn>=1.0.0
+
+# Weather Data Processing
+xarray>=0.20.0
+netCDF4>=1.5.0
+h5py>=3.0.0
+
+# Pre-trained Models and Datasets
+transformers>=4.20.0
+huggingface-hub>=0.10.0
+timm>=0.6.0
+
+# Geospatial and Satellite Data
+torchgeo>=0.4.0
+rasterio>=1.3.0
+cartopy>=0.21.0
+
+# Time Series Forecasting
+pytorch-forecasting>=0.10.0
+pytorch-lightning>=1.8.0
+
+# Weather APIs and Data
+requests>=2.28.0
+aiohttp>=3.8.0
+
+# Image Processing
+Pillow>=9.0.0
+opencv-python>=4.6.0
+
+# Utilities
+tqdm>=4.64.0
+matplotlib>=3.5.0
+seaborn>=0.11.0
+plotly>=5.10.0
+
+# Production
+gunicorn>=20.1.0
+uvicorn>=0.18.0
+fastapi>=0.85.0

@@ -1,0 +1,43 @@
+{
+  "name": "weather-nft-live",
+  "version": "2.0.0",
+  "description": "Revolutionary NFT project that captures unique weather moments as tradeable digital assets with real AI-powered weather prediction using PyTorch and SD environment.",
+  "main": "simple-frontend-server.js",
+  "scripts": {
+    "start": "node simple-frontend-server.js",
+    "build": "echo 'Build completed'",
+    "dev": "./restart-all.sh",
+    "test": "node simple-test-server.js"
+  },
+  "keywords": [
+    "NFT",
+    "weather",
+    "blockchain", 
+    "AI",
+    "PyTorch",
+    "Tezos",
+    "machine-learning"
+  ],
+  "author": "WeatherNFT Team",
+  "license": "MIT",
+  "dependencies": {
+    "@taquito/signer": "^22.0.0",
+    "@taquito/taquito": "^22.0.0",
+    "@tensorflow/tfjs-node": "^4.10.0",
+    "axios": "^1.10.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^4.18.2",
+    "http-proxy-middleware": "^3.0.5",
+    "mongodb": "^6.17.0",
+    "mongoose": "^8.16.0",
+    "node-fetch": "^2.7.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/username/weather-nft-live.git"
+  }
+}

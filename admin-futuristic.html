@@ -1,0 +1,2170 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WeatherNFT.live - Admin Control Center</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+        :root {
+            /* Эко-киберпанк палитра */
+            --primary-emerald: #10b981;
+            --primary-cyan: #06b6d4;
+            --deep-emerald: #047857;
+            --bright-cyan: #0891b2;
+            --light-emerald: #6ee7b7;
+            --light-cyan: #67e8f9;
+            
+            --gradient-primary: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
+            --gradient-secondary: linear-gradient(135deg, #047857 0%, #0891b2 100%);
+            --gradient-accent: linear-gradient(135deg, #6ee7b7 0%, #67e8f9 100%);
+            --gradient-dark: linear-gradient(135deg, #064e3b 0%, #0c4a6e 100%);
+            
+            --glass-bg: rgba(16, 185, 129, 0.1);
+            --glass-border: rgba(16, 185, 129, 0.2);
+            --glass-shadow: 0 8px 32px rgba(16, 185, 129, 0.1);
+            
+            --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'JetBrains Mono', Monaco, 'Cascadia Code', monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: var(--font-primary);
+            background: var(--gradient-dark);
+            color: white;
+            min-height: 100vh;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        /* Живой фон с частицами */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: 
+                radial-gradient(circle at 25% 25%, rgba(16, 185, 129, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 75% 75%, rgba(6, 182, 212, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.05) 0%, transparent 70%);
+            animation: floatingParticles 20s ease-in-out infinite;
+            z-index: -2;
+        }
+        
+        /* Сетка */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-image: 
+                linear-gradient(rgba(16, 185, 129, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(16, 185, 129, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: gridPulse 10s ease-in-out infinite;
+            z-index: -1;
+        }
+        
+        @keyframes floatingParticles {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            33% { transform: translateY(-20px) rotate(120deg); }
+            66% { transform: translateY(10px) rotate(240deg); }
+        }
+        
+        @keyframes gridPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* Основная структура */
+        .admin-container {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            min-height: 100vh;
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* Боковая панель */
+        .sidebar {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid var(--glass-border);
+            padding: 2rem 1.5rem;
+            box-shadow: var(--glass-shadow);
+        }
+        
+        .admin-logo {
+            font-family: var(--font-mono);
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        
+        .nav-section {
+            margin-bottom: 2rem;
+        }
+        
+        .nav-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--light-emerald);
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            margin: 8px 0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+            text-decoration: none;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .nav-item:hover {
+            background: var(--glass-bg);
+            border-color: var(--glass-border);
+            color: white;
+            transform: translateX(4px);
+        }
+        
+        .nav-item.active {
+            background: var(--gradient-primary);
+            color: white;
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
+        }
+        
+        .nav-icon {
+            margin-right: 12px;
+            font-size: 1.1rem;
+            width: 20px;
+        }
+        
+        /* Основной контент */
+        .main-content {
+            padding: 2rem;
+            overflow-y: auto;
+        }
+        
+        .page-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--glass-border);
+        }
+        
+        .page-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: var(--gradient-accent);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .page-subtitle {
+            color: rgba(255, 255, 255, 0.6);
+            margin-top: 0.5rem;
+        }
+        
+        /* Карточки статистики */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(16, 185, 129, 0.2);
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 2px;
+            background: var(--gradient-primary);
+            animation: progress-scan 3s ease-in-out infinite;
+        }
+        
+        @keyframes progress-scan {
+            0%, 100% { transform: translateX(-100%); }
+            50% { transform: translateX(100%); }
+        }
+        
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--light-cyan);
+            font-weight: 500;
+        }
+        
+        .stat-icon {
+            font-size: 1.5rem;
+            opacity: 0.7;
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1;
+        }
+        
+        .stat-change {
+            font-size: 0.75rem;
+            margin-top: 0.5rem;
+            opacity: 0.8;
+        }
+        
+        .stat-change.positive {
+            color: var(--light-emerald);
+        }
+        
+        /* Секции */
+        .section {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .section::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 1px;
+            background: var(--gradient-primary);
+            animation: hologram-scan 4s linear infinite;
+        }
+        
+        @keyframes hologram-scan {
+            0% { transform: translateX(-100%); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateX(100%); opacity: 0; }
+        }
+        
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: white;
+        }
+        
+        /* Вкладки */
+        .tabs-container {
+            margin-bottom: 2rem;
+        }
+        
+        .tabs-nav {
+            display: flex;
+            gap: 0;
+            border-bottom: 1px solid var(--glass-border);
+            margin-bottom: 2rem;
+        }
+        
+        .tab {
+            padding: 1rem 2rem;
+            cursor: pointer;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.6);
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s ease;
+            position: relative;
+            background: transparent;
+            border: none;
+            font-size: 1rem;
+        }
+        
+        .tab:hover {
+            color: var(--light-cyan);
+            background: rgba(16, 185, 129, 0.05);
+        }
+        
+        .tab.active {
+            color: white;
+            border-bottom-color: var(--primary-emerald);
+            background: var(--glass-bg);
+        }
+        
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px; left: 0;
+            width: 100%; height: 2px;
+            background: var(--gradient-primary);
+            animation: tab-glow 2s ease-in-out infinite;
+        }
+        
+        @keyframes tab-glow {
+            0%, 100% { box-shadow: 0 0 5px var(--primary-emerald); }
+            50% { box-shadow: 0 0 20px var(--primary-emerald), 0 0 30px var(--primary-cyan); }
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+            animation: fadeInUp 0.5s ease-out;
+        }
+        
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Таблицы */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .data-table th {
+            background: var(--gradient-secondary);
+            color: white;
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .data-table td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--glass-border);
+            color: rgba(255, 255, 255, 0.9);
+        }
+        
+        .data-table tr:hover {
+            background: var(--glass-bg);
+        }
+        
+        /* Кнопки */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.875rem;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-primary {
+            background: var(--gradient-primary);
+            color: white;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid var(--glass-border);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+        }
+        
+        /* Статус бейджи */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            gap: 0.5rem;
+        }
+        
+        .status-active {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--light-emerald);
+            border: 1px solid var(--primary-emerald);
+        }
+        
+        .status-inactive {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            border: 1px solid #ef4444;
+        }
+        
+        .status-pending {
+            background: rgba(245, 158, 11, 0.2);
+            color: #fbbf24;
+            border: 1px solid #f59e0b;
+        }
+        
+        /* Индикатор статуса */
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-dot.active {
+            background: var(--light-emerald);
+        }
+        
+        .status-dot.inactive {
+            background: #ef4444;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* Модальные окна */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+        }
+        
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+        }
+        
+        /* Скрытые страницы */
+        .page {
+            display: none;
+        }
+        
+        .page.active {
+            display: block;
+            animation: fadeInUp 0.5s ease-out;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .admin-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .sidebar {
+                position: fixed;
+                top: 0; left: -280px;
+                height: 100vh;
+                z-index: 999;
+                transition: left 0.3s ease;
+            }
+            
+            .sidebar.mobile-open {
+                left: 0;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Боковая панель -->
+        <aside class="sidebar">
+            <div class="admin-logo">
+                🌦️ WEATHER•NFT<br>
+                <span style="font-size: 0.8rem; opacity: 0.7;">ADMIN CENTER</span>
+            </div>
+            
+            <nav>
+                <div class="nav-section">
+                    <div class="nav-title">Control</div>
+                    <a class="nav-item active" data-page="dashboard">
+                        <span class="nav-icon">📊</span>
+                        Dashboard
+                    </a>
+                    <a class="nav-item" data-page="ai-control">
+                        <span class="nav-icon">🧠</span>
+                        AI Control
+                    </a>
+                    <a class="nav-item" data-page="systems">
+                        <span class="nav-icon">⚙️</span>
+                        Systems
+                    </a>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-title">Management</div>
+                    <a class="nav-item" data-page="events">
+                        <span class="nav-icon">⚡</span>
+                        Events
+                    </a>
+                    <a class="nav-item" data-page="users">
+                        <span class="nav-icon">👥</span>
+                        Users
+                    </a>
+                    <a class="nav-item" data-page="nfts">
+                        <span class="nav-icon">🎨</span>
+                        NFTs
+                    </a>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-title">Blockchain</div>
+                    <a class="nav-item" data-page="blockchain">
+                        <span class="nav-icon">🔗</span>
+                        Tezos Network
+                    </a>
+                    <a class="nav-item" data-page="contracts">
+                        <span class="nav-icon">📋</span>
+                        Contracts
+                    </a>
+                </div>
+            </nav>
+        </aside>
+        
+        <!-- Основной контент -->
+        <main class="main-content">
+            <!-- Dashboard -->
+            <div id="dashboard" class="page active">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Control Dashboard</h1>
+                        <p class="page-subtitle">Real-time system monitoring and control center</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="refreshDashboard()">
+                        🔄 Refresh Data
+                    </button>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-label">Active Events</span>
+                            <span class="stat-icon">⚡</span>
+                        </div>
+                        <div class="stat-value" id="active-events">8</div>
+                        <div class="stat-change positive">↗ +2 from yesterday</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-label">AI Predictions</span>
+                            <span class="stat-icon">🧠</span>
+                        </div>
+                        <div class="stat-value" id="ai-predictions">1,247</div>
+                        <div class="stat-change positive">↗ +156 today</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-label">System Uptime</span>
+                            <span class="stat-icon">⚙️</span>
+                        </div>
+                        <div class="stat-value" id="system-uptime">99.8%</div>
+                        <div class="stat-change positive">↗ Excellent</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-label">Total Users</span>
+                            <span class="stat-icon">👥</span>
+                        </div>
+                        <div class="stat-value" id="total-users">342</div>
+                        <div class="stat-change positive">↗ +23 this week</div>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h2 class="section-title">🌐 System Services</h2>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Service</th>
+                                <th>Status</th>
+                                <th>Port</th>
+                                <th>Uptime</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="services-table">
+                            <tr>
+                                <td>AI Backend</td>
+                                <td><span class="status-badge status-active"><span class="status-dot active"></span>Active</span></td>
+                                <td>3006</td>
+                                <td>2h 45m</td>
+                                <td><button class="btn btn-secondary">Restart</button></td>
+                            </tr>
+                            <tr>
+                                <td>Frontend</td>
+                                <td><span class="status-badge status-active"><span class="status-dot active"></span>Active</span></td>
+                                <td>8081</td>
+                                <td>2h 45m</td>
+                                <td><button class="btn btn-secondary">Restart</button></td>
+                            </tr>
+                            <tr>
+                                <td>Blockchain</td>
+                                <td><span class="status-badge status-active"><span class="status-dot active"></span>Active</span></td>
+                                <td>3007</td>
+                                <td>2h 45m</td>
+                                <td><button class="btn btn-secondary">Restart</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- AI Control -->
+            <div id="ai-control" class="page">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">AI Control Center</h1>
+                        <p class="page-subtitle">Advanced neural network management and monitoring</p>
+                    </div>
+                </div>
+                
+                <div class="tabs-container">
+                    <div class="tabs-nav">
+                        <button class="tab active" data-tab="models">Active Models</button>
+                        <button class="tab" data-tab="training">Training</button>
+                        <button class="tab" data-tab="pytorch">PyTorch Setup</button>
+                        <button class="tab" data-tab="api-config">API Configuration</button>
+                    </div>
+                    
+                    <!-- Models Tab -->
+                    <div id="models" class="tab-content active">
+                        <div class="section">
+                            <h2 class="section-title">🤖 Active AI Models</h2>
+                            <table class="data-table" id="ai-models-table">
+                                <thead>
+                                    <tr>
+                                        <th>Model</th>
+                                        <th>Type</th>
+                                        <th>Accuracy</th>
+                                        <th>Predictions</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Dynamic content -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Training Tab -->
+                    <div id="training" class="tab-content">
+                        <div class="section">
+                            <h2 class="section-title">🎯 Model Training Pipeline</h2>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                                <div>
+                                    <h3 style="margin-bottom: 1rem; color: var(--light-cyan);">Current Setup</h3>
+                                    <p>• JavaScript ML (Active)</p>
+                                    <p>• 5 specialized algorithms</p>
+                                    <p>• Real-time training</p>
+                                    <p>• 87-96% accuracy range</p>
+                                </div>
+                                <div>
+                                    <h3 style="margin-bottom: 1rem; color: var(--light-cyan);">Recommended Upgrade</h3>
+                                    <p>• PyTorch deep learning</p>
+                                    <p>• LSTM/Transformer models</p>
+                                    <p>• GPU acceleration</p>
+                                    <p>• Historical data training</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- PyTorch Tab -->
+                    <div id="pytorch" class="tab-content">
+                        <div class="section">
+                            <h2 class="section-title">🔥 PyTorch Integration</h2>
+                            <div style="margin-bottom: 2rem;">
+                                <h3 style="color: var(--light-emerald); margin-bottom: 1rem;">Recommended Architecture</h3>
+                                <div style="background: rgba(0,0,0,0.3); padding: 1.5rem; border-radius: 8px; font-family: var(--font-mono); font-size: 0.9rem;">
+                                    <div>Weather APIs → Data Pipeline → PyTorch Model → Event Generation</div>
+                                    <div style="margin-top: 0.5rem; color: var(--light-cyan);">
+                                        LSTM/Transformer → Classification → Confidence Score → NFT Trigger
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div style="display: grid; gap: 1rem;">
+                                <button class="btn btn-primary" onclick="startAnacondaPyTorch()">
+                                    🐍 Start Anaconda PyTorch (SD Environment)
+                                </button>
+                                <button class="btn btn-secondary" onclick="deployPyTorch()">
+                                    🚀 Check PyTorch Server Status
+                                </button>
+                                <button class="btn btn-secondary" onclick="testPyTorchPrediction()">
+                                    🧪 Test PyTorch Prediction
+                                </button>
+                                <button class="btn btn-secondary" onclick="setupTrainingData()">
+                                    📊 Setup Training Data Pipeline
+                                </button>
+                                <button class="btn btn-secondary" onclick="configureGPU()">
+                                    ⚡ Configure GPU Infrastructure
+                                </button>
+                            </div>
+                            
+                            <div style="margin-top: 2rem;">
+                                <h3 style="color: var(--light-cyan); margin-bottom: 1rem;">PyTorch Status</h3>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                    <div>
+                                        <strong>Server Status:</strong> <span class="pytorch-status status-badge status-inactive">Inactive</span>
+                                    </div>
+                                    <div>
+                                        <strong>Anaconda SD:</strong> <span class="status-badge status-active">Available</span>
+                                    </div>
+                                </div>
+                                <div id="pytorch-info" style="margin-top: 1rem; font-size: 0.9rem; color: var(--light-emerald);">
+                                    Start PyTorch server to see model information
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- API Config Tab -->
+                    <div id="api-config" class="tab-content">
+                        <div class="section">
+                            <h2 class="section-title">🌐 Weather API Configuration</h2>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                                <div>
+                                    <h3 style="color: var(--light-cyan); margin-bottom: 1rem;">Current APIs</h3>
+                                    <div class="api-status">
+                                        <div style="display: flex; justify-content: space-between; margin: 0.5rem 0;">
+                                            <span>OpenWeatherMap</span>
+                                            <span class="status-badge status-active">Active</span>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; margin: 0.5rem 0;">
+                                            <span>NASA APIs</span>
+                                            <span class="status-badge status-active">Active</span>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; margin: 0.5rem 0;">
+                                            <span>Weather.gov</span>
+                                            <span class="status-badge status-inactive">Inactive</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h3 style="color: var(--light-cyan); margin-bottom: 1rem;">PyTorch Data Flow</h3>
+                                    <div style="font-size: 0.9rem; line-height: 1.8;">
+                                        1. Real-time API data collection<br>
+                                        2. Feature preprocessing & normalization<br>
+                                        3. Model inference with confidence scoring<br>
+                                        4. Event classification & rarity determination<br>
+                                        5. NFT generation trigger
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Другие страницы будут добавлены по необходимости -->
+            <div id="events" class="page">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Weather Events</h1>
+                        <p class="page-subtitle">Manage active weather events and generation</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="generateTestEvent()">
+                        ⚡ Generate Test Event
+                    </button>
+                </div>
+                
+                <div class="section">
+                    <h2 class="section-title">Active Events</h2>
+                    <table class="data-table" id="events-table">
+                        <thead>
+                            <tr>
+                                <th>Event ID</th>
+                                <th>Type</th>
+                                <th>AI Algorithm</th>
+                                <th>Confidence</th>
+                                <th>Rarity</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Dynamic content -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div id="users" class="page">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">User Management</h1>
+                        <p class="page-subtitle">Manage users, credits, and account status</p>
+                    </div>
+                    <div style="display: flex; gap: 1rem;">
+                        <select id="user-status-filter" onchange="loadUsers()" style="background: var(--glass-bg); border: 1px solid var(--glass-border); color: white; padding: 0.5rem; border-radius: 6px;">
+                            <option value="all">All Users</option>
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                        <button class="btn btn-primary" onclick="refreshUsers()">🔄 Refresh</button>
+                    </div>
+                </div>
+                
+                <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 2rem;">
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-label">Total Users</span>
+                            <span class="stat-icon">👥</span>
+                        </div>
+                        <div class="stat-value" id="users-total">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-label">Active Users</span>
+                            <span class="stat-icon">✅</span>
+                        </div>
+                        <div class="stat-value" id="users-active">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-label">Total Credits</span>
+                            <span class="stat-icon">💰</span>
+                        </div>
+                        <div class="stat-value" id="users-credits">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-label">Revenue</span>
+                            <span class="stat-icon">💎</span>
+                        </div>
+                        <div class="stat-value" id="users-revenue">0</div>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h2 class="section-title">👥 User Accounts</h2>
+                    <table class="data-table" id="users-table">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Wallet</th>
+                                <th>Credits</th>
+                                <th>Activity</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Dynamic content -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="blockchain" class="page">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Blockchain Integration</h1>
+                        <p class="page-subtitle">Tezos network and smart contract management</p>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h2 class="section-title">🔗 Tezos Network Status</h2>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                        <div>
+                            <h3 style="color: var(--light-cyan); margin-bottom: 1rem;">Network Info</h3>
+                            <div>Network: <strong>Ghostnet (Testnet)</strong></div>
+                            <div>Block Height: <strong id="block-height">Loading...</strong></div>
+                            <div>Connection: <span class="status-badge status-active">Connected</span></div>
+                        </div>
+                        <div>
+                            <h3 style="color: var(--light-cyan); margin-bottom: 1rem;">Smart Contracts</h3>
+                            <div>NFT Contract: <span class="status-badge status-pending">Not Deployed</span></div>
+                            <div>Event Manager: <span class="status-badge status-pending">Not Deployed</span></div>
+                            <button class="btn btn-primary" style="margin-top: 1rem;" onclick="deployContracts()">
+                                🚀 Deploy Contracts
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script>
+        const API_BASE = 'http://localhost:3006';
+        const BLOCKCHAIN_API = 'http://localhost:3007';
+        const ADMIN_API = 'http://localhost:3008';
+        
+        // Navigation
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                const page = e.target.closest('.nav-item').dataset.page;
+                showPage(page);
+                
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                e.target.closest('.nav-item').classList.add('active');
+            });
+        });
+        
+        // Tabs
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                const tabName = e.target.dataset.tab;
+                const container = e.target.closest('.tabs-container');
+                
+                container.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                container.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+                
+                e.target.classList.add('active');
+                container.querySelector(`#${tabName}`).classList.add('active');
+            });
+        });
+        
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(pageId)?.classList.add('active');
+            
+            // Load page data
+            switch(pageId) {
+                case 'dashboard':
+                    loadDashboard();
+                    break;
+                case 'ai-control':
+                    loadAIModels();
+                    break;
+                case 'events':
+                    loadEvents();
+                    break;
+                case 'blockchain':
+                    loadBlockchainData();
+                    break;
+                case 'users':
+                    loadUsers();
+                    break;
+            }
+        }
+        
+        async function loadDashboard() {
+            try {
+                const response = await fetch(`${ADMIN_API}/api/dashboard`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const overview = data.data.overview;
+                    const services = data.data.services;
+                    
+                    // Update overview stats
+                    document.getElementById('active-events').textContent = overview.activeEvents;
+                    document.getElementById('total-users').textContent = overview.totalUsers;
+                    document.getElementById('ai-predictions').textContent = overview.aiPredictions;
+                    document.getElementById('system-uptime').textContent = overview.systemUptime + 'h';
+                    
+                    // Update services table
+                    const servicesTable = document.getElementById('services-table');
+                    if (servicesTable) {
+                        servicesTable.innerHTML = services.map(service => `
+                            <tr>
+                                <td><strong>${service.name}</strong></td>
+                                <td>
+                                    <span class="status-badge status-${service.status}">
+                                        <span class="status-dot ${service.status}"></span>
+                                        ${service.status.charAt(0).toUpperCase() + service.status.slice(1)}
+                                    </span>
+                                </td>
+                                <td>${service.port}</td>
+                                <td>${service.uptime}</td>
+                                <td>
+                                    <button class="btn btn-secondary" onclick="restartService('${service.name}')">Restart</button>
+                                </td>
+                            </tr>
+                        `).join('');
+                    }
+                    
+                    // Update additional stats in stat cards
+                    const changeIndicators = document.querySelectorAll('.stat-change');
+                    if (changeIndicators.length > 0) {
+                        changeIndicators[0].textContent = `↗ AI Accuracy: ${overview.avgAIAccuracy}%`;
+                        changeIndicators[1].textContent = `↗ Active Users: ${overview.activeUsers}/${overview.totalUsers}`;
+                        changeIndicators[2].textContent = `↗ ${overview.systemUptime}h uptime`;
+                        if (changeIndicators[3]) {
+                            changeIndicators[3].textContent = `↗ ${data.data.userStats.avgCreditsPerUser} avg credits`;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Dashboard load error:', error);
+                showNotification('Admin backend not available. Start admin-backend.js', 'error');
+            }
+        }
+        
+        async function loadAIModels() {
+            try {
+                const response = await fetch(`${ADMIN_API}/api/ai/models`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const tbody = document.querySelector('#ai-models-table tbody');
+                    tbody.innerHTML = data.data.map(model => `
+                        <tr>
+                            <td>
+                                <strong>${model.name}</strong><br>
+                                <small style="color: var(--light-cyan)">${model.specialization}</small>
+                            </td>
+                            <td>
+                                <span style="font-family: var(--font-mono)">${model.type}</span><br>
+                                <small>v${model.version}</small>
+                            </td>
+                            <td>
+                                <span style="color: var(--light-emerald); font-weight: bold">${model.accuracy}%</span><br>
+                                <small>Avg: ${(model.realtime_stats.avg_confidence * 100).toFixed(1)}%</small>
+                            </td>
+                            <td>
+                                <span style="font-weight: bold">${model.predictions || 0}</span><br>
+                                <small>${model.realtime_stats.last_used ? 'Last: ' + new Date(model.realtime_stats.last_used).toLocaleTimeString() : 'Never used'}</small>
+                            </td>
+                            <td>
+                                <span class="status-badge status-${model.enabled !== false ? 'active' : 'inactive'}">
+                                    ${model.enabled !== false ? 'Enabled' : 'Disabled'}
+                                </span>
+                            </td>
+                            <td>
+                                <button class="btn btn-primary" onclick="toggleModel('${model.name}', ${model.enabled !== false})">
+                                    ${model.enabled !== false ? 'Disable' : 'Enable'}
+                                </button>
+                                <button class="btn btn-secondary" onclick="retrainModel('${model.name}')">Retrain</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                    
+                    // Update metrics
+                    const metricsContainer = document.getElementById('ai-metrics');
+                    if (metricsContainer) {
+                        metricsContainer.innerHTML = data.data.map(model => `
+                            <div class="metric-card">
+                                <div class="metric-name">${model.name}</div>
+                                <div class="metric-value">${model.accuracy}%</div>
+                                <div style="font-size: 0.75rem; margin-top: 0.5rem; color: var(--light-cyan);">
+                                    ${model.predictions} predictions
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                }
+            } catch (error) {
+                console.error('AI models load error:', error);
+                showNotification('Failed to load AI models', 'error');
+            }
+        }
+        
+        async function loadEvents() {
+            try {
+                const response = await fetch(`${ADMIN_API}/api/admin/events`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const tbody = document.querySelector('#events-table tbody');
+                    tbody.innerHTML = data.data.map(event => `
+                        <tr>
+                            <td>
+                                <code style="font-family: var(--font-mono)">${event.eventId}</code><br>
+                                <small style="color: var(--light-cyan)">${event.uniqueName}</small>
+                            </td>
+                            <td>
+                                <strong>${event.type}</strong><br>
+                                <small>${event.location.city}, ${event.location.country}</small>
+                            </td>
+                            <td>
+                                <span style="font-family: var(--font-mono)">${event.aiAlgorithm}</span><br>
+                                <small>Severity: ${event.severity}</small>
+                            </td>
+                            <td>
+                                <span style="color: var(--light-emerald); font-weight: bold">${(event.confidence * 100).toFixed(1)}%</span><br>
+                                <small>Capture Rate: ${event.performance ? event.performance.captureRate : 0}%</small>
+                            </td>
+                            <td>
+                                <span class="status-badge status-${event.rarity}" style="
+                                    background: ${getRarityColor(event.rarity)};
+                                    color: white;
+                                    border: none;
+                                ">${event.rarity.toUpperCase()}</span><br>
+                                <small>Price: ${event.price} credits</small>
+                            </td>
+                            <td>
+                                <span class="status-badge status-${event.active ? 'active' : 'inactive'}">
+                                    ${event.active ? 'Active' : 'Expired'}
+                                </span><br>
+                                <small>${event.capturedCount}/${event.captureSlots} captured</small>
+                            </td>
+                            <td>
+                                ${event.adminActions && event.adminActions.canBoost ? 
+                                    `<button class="btn btn-primary" onclick="boostEvent('${event.eventId}')">Boost</button>` : ''
+                                }
+                                <button class="btn btn-danger" onclick="deleteEvent('${event.eventId}')">Delete</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Events load error:', error);
+                showNotification('Failed to load events', 'error');
+            }
+        }
+        
+        function getRarityColor(rarity) {
+            const colors = {
+                'common': 'rgba(107, 114, 128, 0.8)',
+                'uncommon': 'rgba(34, 197, 94, 0.8)', 
+                'rare': 'rgba(59, 130, 246, 0.8)',
+                'epic': 'rgba(147, 51, 234, 0.8)',
+                'legendary': 'rgba(251, 191, 36, 0.8)'
+            };
+            return colors[rarity] || colors.common;
+        }
+        
+        async function boostEvent(eventId) {
+            const multiplier = prompt('Enter boost multiplier (1.5, 2.0, etc.):', '1.5');
+            if (!multiplier) return;
+            
+            try {
+                const response = await fetch(`${ADMIN_API}/api/admin/events/${eventId}/boost`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ boostMultiplier: parseFloat(multiplier) })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    showNotification(data.message, 'success');
+                    loadEvents();
+                } else {
+                    showNotification('Failed to boost event', 'error');
+                }
+            } catch (error) {
+                showNotification('Error boosting event', 'error');
+            }
+        }
+        
+        async function loadUsers() {
+            try {
+                const statusFilter = document.getElementById('user-status-filter')?.value || 'all';
+                const response = await fetch(`${ADMIN_API}/api/admin/users?status=${statusFilter}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Update user stats
+                    const dashboard = await fetch(`${ADMIN_API}/api/dashboard`);
+                    const dashboardData = await dashboard.json();
+                    
+                    if (dashboardData.success) {
+                        const userStats = dashboardData.data.userStats;
+                        document.getElementById('users-total').textContent = userStats.totalUsers;
+                        document.getElementById('users-active').textContent = userStats.activeUsers;
+                        document.getElementById('users-credits').textContent = userStats.totalCredits;
+                        document.getElementById('users-revenue').textContent = userStats.totalSpent;
+                    }
+                    
+                    // Update users table
+                    const tbody = document.querySelector('#users-table tbody');
+                    tbody.innerHTML = data.data.map(user => `
+                        <tr>
+                            <td>
+                                <strong>User ${user.id.split('_')[1]}</strong><br>
+                                <small style="color: var(--light-cyan)">
+                                    Joined: ${new Date(user.joinedAt).toLocaleDateString()}
+                                </small>
+                            </td>
+                            <td>
+                                <code style="font-family: var(--font-mono); font-size: 0.8rem;">
+                                    ${user.walletAddress}
+                                </code>
+                            </td>
+                            <td>
+                                <span style="color: var(--light-emerald); font-weight: bold; font-size: 1.2rem;">
+                                    ${user.credits}
+                                </span><br>
+                                <small>Spent: ${user.totalSpent}</small>
+                            </td>
+                            <td>
+                                <div style="margin-bottom: 0.5rem;">
+                                    <strong>${user.eventsCaptures}</strong> captures
+                                </div>
+                                <small style="color: var(--light-cyan)">
+                                    Last: ${new Date(user.lastActivity).toLocaleDateString()}
+                                </small>
+                            </td>
+                            <td>
+                                <span class="status-badge status-${user.status}">
+                                    ${user.status.charAt(0).toUpperCase() + user.status.slice(1)}
+                                </span>
+                            </td>
+                            <td>
+                                <button class="btn btn-primary" onclick="manageUserCredits('${user.id}', ${user.credits})">
+                                    💰 Credits
+                                </button>
+                                <button class="btn btn-${user.status === 'active' ? 'danger' : 'secondary'}" 
+                                        onclick="toggleUserStatus('${user.id}', '${user.status}')">
+                                    ${user.status === 'active' ? 'Deactivate' : 'Activate'}
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Users load error:', error);
+                showNotification('Failed to load users', 'error');
+            }
+        }
+        
+        async function loadBlockchainData() {
+            try {
+                const response = await fetch(`${BLOCKCHAIN_API}/health`);
+                const data = await response.json();
+                
+                if (data.status === 'OK') {
+                    // Update blockchain status
+                    console.log('Blockchain service connected');
+                }
+            } catch (error) {
+                console.error('Blockchain load error:', error);
+            }
+        }
+        
+        // Action functions
+        function refreshDashboard() {
+            loadDashboard();
+            showNotification('Dashboard refreshed', 'success');
+        }
+        
+        async function generateTestEvent() {
+            try {
+                const response = await fetch(`${API_BASE}/api/events/generate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ lat: 55.7558, lng: 37.6173 })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    showNotification(`Generated ${data.generated_events} events!`, 'success');
+                    loadEvents();
+                }
+            } catch (error) {
+                showNotification('Failed to generate event', 'error');
+            }
+        }
+        
+        async function deployPyTorch() {
+            showNotification('Checking SD PyTorch AI Server...', 'info');
+            
+            try {
+                // Check SD AI status via admin backend
+                const response = await fetch(`${ADMIN_API}/api/ai/sd-status`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification('SD PyTorch AI Server is running!', 'success');
+                    loadPyTorchStatus();
+                    updatePyTorchStatus('active');
+                } else {
+                    showNotification(data.message || 'SD AI not running', 'warning');
+                    updatePyTorchStatus('inactive');
+                }
+            } catch (error) {
+                showNotification('SD AI server not accessible. Use: python sd-pytorch-integration.py --server', 'info');
+                updatePyTorchStatus('inactive');
+            }
+        }
+        
+        function setupTrainingData() {
+            showNotification('Setting up training data pipeline...', 'info');
+        }
+        
+        function configureGPU() {
+            showNotification('Configuring GPU infrastructure...', 'info');
+        }
+        
+        async function loadPyTorchStatus() {
+            try {
+                const response = await fetch(`${ADMIN_API}/api/ai/sd-info`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    updatePyTorchInfo(data.data);
+                    updatePyTorchStatus('active');
+                } else {
+                    updatePyTorchInfo(data.fallback_info);
+                    updatePyTorchStatus('inactive');
+                }
+            } catch (error) {
+                console.error('SD AI status error:', error);
+                updatePyTorchStatus('inactive');
+            }
+        }
+        
+        function updatePyTorchStatus(status) {
+            // Update PyTorch status in the UI
+            const statusElements = document.querySelectorAll('.pytorch-status');
+            statusElements.forEach(el => {
+                el.className = `status-badge status-${status}`;
+                el.textContent = status === 'active' ? 'Active' : 'Inactive';
+            });
+        }
+        
+        function updatePyTorchInfo(info) {
+            // Update SD AI model information
+            const infoElement = document.getElementById('pytorch-info');
+            if (infoElement && info) {
+                infoElement.innerHTML = `
+                    <div><strong>Status:</strong> ${info.status || 'Unknown'}</div>
+                    <div><strong>SD Environment:</strong> ${info.sd_environment ? '✅ Active' : '❌ Not detected'}</div>
+                    <div><strong>PyTorch:</strong> ${info.pytorch_available ? '✅ Available' : '❌ Fallback mode'}</div>
+                    <div><strong>Algorithms:</strong> ${info.algorithms_count || 5} models loaded</div>
+                    <div><strong>Python:</strong> ${info.python_version?.split(' ')[0] || 'Unknown'}</div>
+                    <div style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--light-cyan);">
+                        ${info.note || 'SD AI integration ready'}
+                    </div>
+                `;
+            }
+        }
+        
+        async function startAnacondaPyTorch() {
+            try {
+                showNotification('Starting SD AI environment...', 'info');
+                
+                // Try to get SD AI start instructions via admin backend
+                const response = await fetch(`${ADMIN_API}/api/ai/sd-start`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    showNotification('SD AI start instructions provided. Check console.', 'success');
+                    console.log('SD AI Start Instructions:', data.instructions);
+                } else {
+                    // Fallback - show manual instructions
+                    showNotification('Manual start: Run ./start-sd-ai.sh --server', 'info');
+                }
+                
+                // Check status after delay
+                setTimeout(async () => {
+                    try {
+                        const healthCheck = await fetch('http://localhost:8000/health');
+                        if (healthCheck.ok) {
+                            showNotification('SD AI server is now running!', 'success');
+                            updatePyTorchStatus('active');
+                            loadPyTorchStatus();
+                        }
+                    } catch (e) {
+                        console.log('SD AI not ready yet, start manually with: ./start-sd-ai.sh --server');
+                    }
+                }, 5000);
+                
+            } catch (error) {
+                showNotification('Manual start: ./start-sd-ai.sh --server or python sd-pytorch-integration.py --server', 'info');
+            }
+        }
+        
+        async function testPyTorchPrediction() {
+            try {
+                showNotification('Testing SD AI prediction...', 'info');
+                
+                const testData = {
+                    temperature: 35,
+                    humidity: 85,
+                    pressure: 995,
+                    wind_speed: 45,
+                    visibility: 2,
+                    cloud_cover: 90,
+                    uv_index: 1,
+                    precipitation: 15
+                };
+                
+                const response = await fetch(`${ADMIN_API}/api/ai/sd-predict`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(testData)
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    showNotification(`SD AI: ${data.data.event_type} (${(data.data.confidence * 100).toFixed(1)}%)`, 'success');
+                    console.log('SD AI Prediction:', {
+                        algorithm: data.data.algorithm,
+                        event_type: data.data.event_type,
+                        confidence: data.data.confidence,
+                        rarity: data.data.rarity,
+                        model_type: data.data.model_type
+                    });
+                } else {
+                    showNotification('SD AI prediction failed: ' + data.message, 'error');
+                }
+            } catch (error) {
+                showNotification('SD AI server not available. Start it first.', 'error');
+            }
+        }
+        
+        function deployContracts() {
+            showNotification('Deploying smart contracts to Tezos...', 'info');
+        }
+        
+        function showNotification(message, type = 'info') {
+            // Simple notification system
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 1rem 1.5rem;
+                background: var(--glass-bg);
+                backdrop-filter: blur(20px);
+                border: 1px solid var(--glass-border);
+                border-radius: 8px;
+                color: white;
+                z-index: 10000;
+                animation: slideIn 0.3s ease-out;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+        
+        // Admin functions
+        async function restartService(serviceName) {
+            if (!confirm(`Restart ${serviceName} service?`)) return;
+            
+            try {
+                const response = await fetch(`${ADMIN_API}/api/admin/system/restart/${encodeURIComponent(serviceName)}`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    showNotification(data.message, 'success');
+                    setTimeout(loadDashboard, 2000);
+                } else {
+                    showNotification('Failed to restart service', 'error');
+                }
+            } catch (error) {
+                showNotification('Error restarting service', 'error');
+            }
+        }
+        
+        async function toggleModel(modelName, currentlyEnabled) {
+            try {
+                const response = await fetch(`${ADMIN_API}/api/ai/models/${modelName}/toggle`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: !currentlyEnabled })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    showNotification(data.message, 'success');
+                    loadAIModels();
+                } else {
+                    showNotification('Failed to toggle model', 'error');
+                }
+            } catch (error) {
+                showNotification('Error toggling model', 'error');
+            }
+        }
+        
+        async function retrainModel(modelName) {
+            if (!confirm(`Start retraining ${modelName}? This may take 5-10 minutes.`)) return;
+            
+            try {
+                const response = await fetch(`${ADMIN_API}/api/ai/models/${modelName}/retrain`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    showNotification(`${data.message} (${data.estimatedTime})`, 'success');
+                } else {
+                    showNotification('Failed to start retraining', 'error');
+                }
+            } catch (error) {
+                showNotification('Error starting retraining', 'error');
+            }
+        }
+        
+        async function deleteEvent(eventId) {
+            if (!confirm(`Delete event ${eventId}? This action cannot be undone.`)) return;
+            
+            try {
+                const response = await fetch(`${ADMIN_API}/api/admin/events/${eventId}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    showNotification(data.message, 'success');
+                    loadEvents();
+                } else {
+                    showNotification('Failed to delete event', 'error');
+                }
+            } catch (error) {
+                showNotification('Error deleting event', 'error');
+            }
+        }
+        
+        function refreshUsers() {
+            loadUsers();
+        }
+        
+        async function manageUserCredits(userId, currentCredits) {
+            const action = prompt(`Current credits: ${currentCredits}\nEnter change (+10, -5, =50):`);
+            if (!action) return;
+            
+            let amount = 0;
+            if (action.startsWith('+')) {
+                amount = parseInt(action.substring(1));
+            } else if (action.startsWith('-')) {
+                amount = -parseInt(action.substring(1));
+            } else if (action.startsWith('=')) {
+                amount = parseInt(action.substring(1)) - currentCredits;
+            } else {
+                amount = parseInt(action);
+            }
+            
+            if (isNaN(amount)) {
+                showNotification('Invalid amount format', 'error');
+                return;
+            }
+            
+            const reason = prompt('Reason for credit change:') || 'Admin adjustment';
+            
+            try {
+                const response = await fetch(`${ADMIN_API}/api/admin/users/${userId}/credits`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount, reason })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    showNotification(`${data.message}. New balance: ${data.newBalance}`, 'success');
+                    loadUsers();
+                } else {
+                    showNotification('Failed to update credits', 'error');
+                }
+            } catch (error) {
+                showNotification('Error updating credits', 'error');
+            }
+        }
+        
+        async function toggleUserStatus(userId, currentStatus) {
+            const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+            const reason = prompt(`Change user status to ${newStatus}. Reason:`);
+            if (!reason) return;
+            
+            try {
+                const response = await fetch(`${ADMIN_API}/api/admin/users/${userId}/status`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: newStatus, reason })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    showNotification(data.message, 'success');
+                    loadUsers();
+                } else {
+                    showNotification('Failed to update user status', 'error');
+                }
+            } catch (error) {
+                showNotification('Error updating user status', 'error');
+            }
+        }
+
+        // Initialize
+        loadDashboard();
+    </script>
+
+    <!-- Terminal Widget Integration -->
+    <script>
+        // Inline terminal widget
+        (function() {
+            // Terminal styles
+            const terminalStyles = `
+                .terminal-widget {
+                    position: fixed;
+                    bottom: 20px;
+                    right: 20px;
+                    width: 600px;
+                    height: 400px;
+                    background: #0a0e27;
+                    border: 2px solid var(--primary-emerald);
+                    border-radius: 12px;
+                    box-shadow: 0 8px 32px rgba(16, 185, 129, 0.3);
+                    display: none;
+                    flex-direction: column;
+                    z-index: 10000;
+                    font-family: var(--font-mono);
+                }
+                
+                .terminal-header {
+                    background: var(--gradient-primary);
+                    padding: 0.75rem 1rem;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    border-radius: 10px 10px 0 0;
+                }
+                
+                .terminal-title {
+                    color: white;
+                    font-weight: 600;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                }
+                
+                .terminal-buttons {
+                    display: flex;
+                    gap: 0.5rem;
+                }
+                
+                .terminal-btn {
+                    width: 12px;
+                    height: 12px;
+                    border-radius: 50%;
+                    border: none;
+                    cursor: pointer;
+                }
+                
+                .terminal-btn.minimize { background: #fbbf24; }
+                .terminal-btn.maximize { background: #10b981; }
+                .terminal-btn.close { background: #ef4444; }
+                
+                .terminal-body {
+                    flex: 1;
+                    padding: 1rem;
+                    overflow-y: auto;
+                    font-size: 14px;
+                    line-height: 1.6;
+                }
+                
+                .terminal-output {
+                    color: var(--light-cyan);
+                    margin-bottom: 1rem;
+                    white-space: pre-wrap;
+                    word-wrap: break-word;
+                }
+                
+                .terminal-input-container {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    padding: 0.5rem 1rem;
+                    background: rgba(16, 185, 129, 0.1);
+                    border-top: 1px solid rgba(16, 185, 129, 0.2);
+                }
+                
+                .terminal-prompt {
+                    color: var(--primary-emerald);
+                    font-weight: 600;
+                }
+                
+                .terminal-input {
+                    flex: 1;
+                    background: transparent;
+                    border: none;
+                    color: var(--light-cyan);
+                    font-family: inherit;
+                    font-size: 14px;
+                    outline: none;
+                }
+                
+                .terminal-fab {
+                    position: fixed;
+                    bottom: 20px;
+                    right: 20px;
+                    width: 60px;
+                    height: 60px;
+                    background: var(--gradient-primary);
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4);
+                    transition: all 0.3s ease;
+                    z-index: 9999;
+                }
+                
+                .terminal-fab:hover {
+                    transform: scale(1.1);
+                    box-shadow: 0 6px 24px rgba(16, 185, 129, 0.6);
+                }
+                
+                .quick-commands {
+                    display: flex;
+                    gap: 0.5rem;
+                    margin-bottom: 1rem;
+                    flex-wrap: wrap;
+                }
+                
+                .quick-cmd {
+                    padding: 0.25rem 0.75rem;
+                    background: rgba(16, 185, 129, 0.2);
+                    border: 1px solid rgba(16, 185, 129, 0.4);
+                    border-radius: 6px;
+                    color: var(--primary-emerald);
+                    cursor: pointer;
+                    font-size: 12px;
+                    transition: all 0.2s;
+                }
+                
+                .quick-cmd:hover {
+                    background: rgba(16, 185, 129, 0.3);
+                    border-color: var(--primary-emerald);
+                }
+                
+                .terminal-output.error { color: #f87171; }
+                .terminal-output.success { color: #4ade80; }
+                .terminal-output.info { color: #60a5fa; }
+                .command-history { color: #94a3b8; margin: 0.25rem 0; }
+                .command { color: var(--primary-emerald); }
+            `;
+            
+            // Add styles
+            const styleSheet = document.createElement('style');
+            styleSheet.textContent = terminalStyles;
+            document.head.appendChild(styleSheet);
+            
+            // Terminal HTML
+            const terminalHTML = `
+                <div class="terminal-fab" onclick="window.toggleTerminal()">
+                    <svg width="30" height="30" viewBox="0 0 24 24" fill="white">
+                        <path d="M2.25 12.76c0 1.6 1.123 2.994 2.707 3.227.079.012.16.018.243.018h13.6c.083 0 .164-.006.243-.018 1.584-.233 2.707-1.626 2.707-3.227V6.24c0-1.6-1.123-2.994-2.707-3.227A1.656 1.656 0 0 0 18.8 3H5.2c-.083 0-.164.006-.243.018C3.373 3.251 2.25 4.645 2.25 6.24v6.52z"/>
+                        <path fill="#fff" d="M7.5 11.25l2.25-2.25L7.5 6.75m4.5 4.5h3"/>
+                    </svg>
+                </div>
+                
+                <div class="terminal-widget" id="terminalWidget">
+                    <div class="terminal-header">
+                        <div class="terminal-title">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                                <path d="M2.25 12.76c0 1.6 1.123 2.994 2.707 3.227.079.012.16.018.243.018h13.6c.083 0 .164-.006.243-.018 1.584-.233 2.707-1.626 2.707-3.227V6.24c0-1.6-1.123-2.994-2.707-3.227A1.656 1.656 0 0 0 18.8 3H5.2c-.083 0-.164.006-.243.018C3.373 3.251 2.25 4.645 2.25 6.24v6.52z"/>
+                            </svg>
+                            Admin Terminal
+                        </div>
+                        <div class="terminal-buttons">
+                            <button class="terminal-btn minimize" onclick="window.minimizeTerminal()"></button>
+                            <button class="terminal-btn maximize" onclick="window.maximizeTerminal()"></button>
+                            <button class="terminal-btn close" onclick="window.closeTerminal()"></button>
+                        </div>
+                    </div>
+                    
+                    <div class="terminal-body" id="terminalOutput">
+                        <div class="terminal-output success">🌦️ WeatherNFT Admin Terminal v1.0</div>
+                        <div class="terminal-output info">Type 'help' for available commands</div>
+                        
+                        <div class="quick-commands">
+                            <div class="quick-cmd" onclick="window.runQuickCommand('status')">Check Status</div>
+                            <div class="quick-cmd" onclick="window.runQuickCommand('start-sd')">Start SD AI</div>
+                            <div class="quick-cmd" onclick="window.runQuickCommand('test-ai')">Test AI</div>
+                            <div class="quick-cmd" onclick="window.runQuickCommand('sd-info')">SD Info</div>
+                            <div class="quick-cmd" onclick="window.runQuickCommand('logs')">View Logs</div>
+                            <div class="quick-cmd" onclick="window.runQuickCommand('events')">Show Events</div>
+                        </div>
+                    </div>
+                    
+                    <div class="terminal-input-container">
+                        <span class="terminal-prompt">admin@weather-nft &gt;</span>
+                        <input type="text" class="terminal-input" id="terminalInput" placeholder="Enter command..." />
+                    </div>
+                </div>
+            `;
+            
+            // Add terminal to page
+            const terminalContainer = document.createElement('div');
+            terminalContainer.innerHTML = terminalHTML;
+            document.body.appendChild(terminalContainer);
+            
+            // Terminal functionality
+            let commandHistory = [];
+            let historyIndex = -1;
+            let isMaximized = false;
+            
+            window.toggleTerminal = function() {
+                const terminal = document.getElementById('terminalWidget');
+                const fab = document.querySelector('.terminal-fab');
+                
+                if (terminal.style.display === 'flex') {
+                    terminal.style.display = 'none';
+                    fab.style.display = 'flex';
+                } else {
+                    terminal.style.display = 'flex';
+                    fab.style.display = 'none';
+                    document.getElementById('terminalInput').focus();
+                }
+            };
+            
+            window.closeTerminal = function() {
+                document.getElementById('terminalWidget').style.display = 'none';
+                document.querySelector('.terminal-fab').style.display = 'flex';
+            };
+            
+            window.minimizeTerminal = function() {
+                window.closeTerminal();
+            };
+            
+            window.maximizeTerminal = function() {
+                const terminal = document.getElementById('terminalWidget');
+                if (!isMaximized) {
+                    terminal.style.width = '90vw';
+                    terminal.style.height = '80vh';
+                    terminal.style.right = '5vw';
+                    terminal.style.bottom = '10vh';
+                    isMaximized = true;
+                } else {
+                    terminal.style.width = '600px';
+                    terminal.style.height = '400px';
+                    terminal.style.right = '20px';
+                    terminal.style.bottom = '20px';
+                    isMaximized = false;
+                }
+            };
+            
+            function addOutput(content, className = '') {
+                const output = document.getElementById('terminalOutput');
+                const div = document.createElement('div');
+                div.className = `terminal-output ${className}`;
+                div.innerHTML = content;
+                output.appendChild(div);
+                output.scrollTop = output.scrollHeight;
+            }
+            
+            function addCommand(command) {
+                const output = document.getElementById('terminalOutput');
+                const div = document.createElement('div');
+                div.className = 'command-history';
+                div.innerHTML = `<span class="command">admin@weather-nft &gt;</span> ${command}`;
+                output.appendChild(div);
+            }
+            
+            async function executeCommand(command) {
+                command = command.trim();
+                if (!command) return;
+                
+                addCommand(command);
+                commandHistory.push(command);
+                historyIndex = commandHistory.length;
+                
+                switch (command) {
+                    case 'help':
+                        showHelp();
+                        break;
+                    case 'clear':
+                        clearTerminal();
+                        break;
+                    case 'status':
+                        await checkStatus();
+                        break;
+                    case 'start-sd':
+                        await startSDServer();
+                        break;
+                    case 'logs':
+                        await showLogs();
+                        break;
+                    case 'test-ai':
+                        await testAIPrediction();
+                        break;
+                    case 'events':
+                        await showEvents();
+                        break;
+                    case 'sd-info':
+                        await showSDInfo();
+                        break;
+                    default:
+                        addOutput(`Unknown command: ${command}`, 'error');
+                        addOutput('Type "help" for available commands', 'info');
+                }
+            }
+            
+            function showHelp() {
+                const helpText = `<span class="success">Available Commands:</span>
+
+<span class="info">System Commands:</span>
+  help      - Show this help message
+  clear     - Clear terminal output
+  status    - Check all services status
+  logs      - Show recent system logs
+
+<span class="info">SD AI Commands:</span>
+  start-sd  - Start SD PyTorch AI server instructions
+  test-ai   - Test AI prediction
+  sd-info   - Detailed SD AI environment information
+
+<span class="info">Data Commands:</span>
+  events    - Show current weather events`;
+                addOutput(helpText);
+            }
+            
+            function clearTerminal() {
+                const output = document.getElementById('terminalOutput');
+                output.innerHTML = '<div class="terminal-output success">Terminal cleared</div>';
+            }
+            
+            async function checkStatus() {
+                try {
+                    addOutput('Checking services status...', 'info');
+                    const response = await fetch(`${ADMIN_API}/api/dashboard`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        const services = data.data.services;
+                        addOutput('<span class="success">Services Status:</span>');
+                        services.forEach(service => {
+                            const status = service.status === 'active' ? 
+                                '<span class="success">● RUNNING</span>' : 
+                                '<span class="error">● STOPPED</span>';
+                            addOutput(`  ${service.name}: ${status} (port ${service.port})`);
+                        });
+                    }
+                } catch (error) {
+                    addOutput(`Error: ${error.message}`, 'error');
+                }
+            }
+            
+            async function startSDServer() {
+                try {
+                    addOutput('Getting SD AI start instructions...', 'info');
+                    const response = await fetch(`${ADMIN_API}/api/ai/sd-start`, { method: 'POST' });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        addOutput('SD AI start instructions:', 'success');
+                        Object.entries(data.instructions).forEach(([key, value]) => {
+                            if (key !== 'note') {
+                                addOutput(`  ${value}`, 'info');
+                            }
+                        });
+                    }
+                } catch (error) {
+                    addOutput(`Error: ${error.message}`, 'error');
+                }
+            }
+            
+            async function showLogs() {
+                try {
+                    addOutput('Fetching recent logs...', 'info');
+                    const response = await fetch(`${ADMIN_API}/api/admin/logs?limit=5`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        addOutput('<span class="success">Recent Logs:</span>');
+                        data.data.forEach(log => {
+                            const time = new Date(log.timestamp).toLocaleTimeString();
+                            const levelClass = log.level === 'error' ? 'error' : 
+                                             log.level === 'warning' ? 'info' : 'success';
+                            addOutput(`[${time}] ${log.message}`, levelClass);
+                        });
+                    }
+                } catch (error) {
+                    addOutput(`Error: ${error.message}`, 'error');
+                }
+            }
+            
+            async function testAIPrediction() {
+                try {
+                    addOutput('Testing AI prediction...', 'info');
+                    const testData = {
+                        temperature: 35,
+                        humidity: 85,
+                        pressure: 995,
+                        wind_speed: 45
+                    };
+                    
+                    const response = await fetch(`${ADMIN_API}/api/ai/sd-predict`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(testData)
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success && data.data.success) {
+                        addOutput('<span class="success">AI Prediction:</span>');
+                        addOutput(`  Event: ${data.data.event_type} (${(data.data.confidence * 100).toFixed(1)}%)`);
+                        addOutput(`  Algorithm: ${data.data.algorithm}`);
+                    } else {
+                        addOutput('AI prediction failed', 'error');
+                    }
+                } catch (error) {
+                    addOutput(`Error: ${error.message}`, 'error');
+                }
+            }
+            
+            async function showEvents() {
+                try {
+                    addOutput('Fetching events...', 'info');
+                    const response = await fetch(`${ADMIN_API}/api/admin/events`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        addOutput(`<span class="success">Active Events (${data.data.length}):</span>`);
+                        data.data.slice(0, 3).forEach(event => {
+                            addOutput(`  • ${event.uniqueName} - ${event.rarity}`);
+                        });
+                    }
+                } catch (error) {
+                    addOutput(`Error: ${error.message}`, 'error');
+                }
+            }
+            
+            async function showSDInfo() {
+                try {
+                    addOutput('Fetching SD AI detailed info...', 'info');
+                    const response = await fetch(`${ADMIN_API}/api/ai/sd-info`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        const info = data.data;
+                        addOutput('<span class="success">SD AI Environment Details:</span>');
+                        addOutput(`  Status: ${info.status}`);
+                        addOutput(`  SD Environment: ${info.sd_environment ? '✅ Active' : '❌ Not detected'}`);
+                        addOutput(`  PyTorch: ${info.pytorch_available ? '✅ Available' : '❌ Fallback mode'}`);
+                        addOutput(`  Python: ${info.python_version?.split(' ')[0] || 'Unknown'}`);
+                        addOutput(`  Algorithms: ${info.algorithms_count}`);
+                        
+                        if (info.algorithms) {
+                            addOutput('\n<span class="info">Available Algorithms:</span>');
+                            Object.entries(info.algorithms).forEach(([name, config]) => {
+                                addOutput(`  • ${name}: ${config.accuracy}% (${config.model_type})`);
+                            });
+                        }
+                        
+                        // Try to detect if it's real SD AI or mock
+                        if (info.sd_environment === false && info.pytorch_available === false) {
+                            addOutput('\n<span class="info">💡 Running in Mock Mode</span>');
+                            addOutput('To use real SD AI:');
+                            addOutput('1. Run: conda activate SD');
+                            addOutput('2. Run: pip install fastapi uvicorn');
+                            addOutput('3. Run: python sd-pytorch-integration.py --server');
+                        } else {
+                            addOutput('\n<span class="success">🔥 Real SD AI Active!</span>');
+                        }
+                    } else {
+                        addOutput('SD AI info failed', 'error');
+                    }
+                } catch (error) {
+                    addOutput(`Error: ${error.message}`, 'error');
+                }
+            }
+            
+            window.runQuickCommand = function(command) {
+                document.getElementById('terminalInput').value = command;
+                executeCommand(command);
+                document.getElementById('terminalInput').value = '';
+            };
+            
+            // Input handling
+            document.getElementById('terminalInput').addEventListener('keydown', async (e) => {
+                if (e.key === 'Enter') {
+                    const command = e.target.value;
+                    await executeCommand(command);
+                    e.target.value = '';
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (historyIndex > 0) {
+                        historyIndex--;
+                        e.target.value = commandHistory[historyIndex];
+                    }
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (historyIndex < commandHistory.length - 1) {
+                        historyIndex++;
+                        e.target.value = commandHistory[historyIndex];
+                    } else {
+                        historyIndex = commandHistory.length;
+                        e.target.value = '';
+                    }
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

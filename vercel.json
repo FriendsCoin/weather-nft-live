@@ -1,0 +1,39 @@
+{
+  "version": 2,
+  "name": "weather-nft-live",
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/admin-futuristic.html",
+      "dest": "/admin-futuristic.html"
+    },
+    {
+      "src": "/test-purchase.html", 
+      "dest": "/test-purchase.html"
+    },
+    {
+      "src": "/marketplace-inspired.html",
+      "dest": "/marketplace-inspired.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/simple-frontend-server.js"
+    }
+  ],
+  "functions": {
+    "simple-frontend-server.js": {
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/marketplace-inspired.html"
+    }
+  ]
+}

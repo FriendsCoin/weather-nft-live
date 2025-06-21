@@ -1,0 +1,122 @@
+version: '3.8'
+
+# Development Docker Compose for WeatherNFT
+# Запуск: docker-compose -f docker-compose.dev.yml up
+
+services:
+  # Frontend Service
+  weather-nft-frontend:
+    image: node:18-alpine
+    working_dir: /app
+    volumes:
+      - .:/app
+      - /app/node_modules
+    ports:
+      - "8081:8081"
+    command: node simple-frontend-server.js
+    environment:
+      - NODE_ENV=development
+      - API_URL=http://weather-nft-ai:3006
+    networks:
+      - weather-nft-network
+
+  # AI Backend Service
+  weather-nft-ai:
+    image: node:18-alpine
+    working_dir: /app
+    volumes:
+      - .:/app
+      - /app/node_modules
+    ports:
+      - "3006:3006"
+    command: node simple-test-server.js
+    environment:
+      - NODE_ENV=development
+      - PORT=3006
+    networks:
+      - weather-nft-network
+
+  # Blockchain Service
+  weather-nft-blockchain:
+    image: node:18-alpine
+    working_dir: /app
+    volumes:
+      - .:/app
+      - /app/node_modules
+    ports:
+      - "3007:3007"
+    command: node blockchain-service.js
+    environment:
+      - NODE_ENV=development
+      - PORT=3007
+      - TEZOS_NETWORK=ghostnet
+    networks:
+      - weather-nft-network
+
+  # Admin Backend Service
+  weather-nft-admin:
+    image: node:18-alpine
+    working_dir: /app
+    volumes:
+      - .:/app
+      - /app/node_modules
+    ports:
+      - "3008:3008"
+    command: node admin-backend.js
+    environment:
+      - NODE_ENV=development
+      - ADMIN_API_PORT=3008
+      - AI_API=http://weather-nft-ai:3006
+      - BLOCKCHAIN_API=http://weather-nft-blockchain:3007
+      - SD_AI_API=http://weather-nft-sd-ai:8000
+    depends_on:
+      - weather-nft-ai
+      - weather-nft-blockchain
+    networks:
+      - weather-nft-network
+
+  # SD AI Service (Python)
+  weather-nft-sd-ai:
+    build:
+      context: .
+      dockerfile: Dockerfile.sd-dev
+    volumes:
+      - .:/app
+      - ./models:/app/models
+    ports:
+      - "8000:8000"
+    command: python sd-pytorch-integration.py --server
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTORCH_AI_PORT=8000
+    networks:
+      - weather-nft-network
+
+  # Optional: Redis for caching
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - weather-nft-network
+
+  # Optional: PostgreSQL for data persistence
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=weathernft
+      - POSTGRES_PASSWORD=weathernft123
+      - POSTGRES_DB=weathernft
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - weather-nft-network
+
+networks:
+  weather-nft-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

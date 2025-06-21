@@ -1,0 +1,83 @@
+# Render.com configuration
+services:
+  # Frontend + API Gateway
+  - type: web
+    name: weather-nft-frontend
+    env: node
+    repo: https://github.com/your-username/weather-nft-live.git
+    buildCommand: npm install
+    startCommand: node simple-frontend-server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 8080
+      - key: AI_API_URL
+        fromService:
+          type: web
+          name: weather-nft-ai
+          property: host
+      - key: ADMIN_API_URL
+        fromService:
+          type: web
+          name: weather-nft-admin
+          property: host
+
+  # AI Backend Service
+  - type: web
+    name: weather-nft-ai
+    env: node
+    repo: https://github.com/your-username/weather-nft-live.git
+    buildCommand: npm install
+    startCommand: node simple-test-server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3006
+
+  # Blockchain Service
+  - type: web
+    name: weather-nft-blockchain
+    env: node
+    repo: https://github.com/your-username/weather-nft-live.git
+    buildCommand: npm install
+    startCommand: node blockchain-service.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3007
+
+  # Admin Backend
+  - type: web
+    name: weather-nft-admin
+    env: node
+    repo: https://github.com/your-username/weather-nft-live.git
+    buildCommand: npm install
+    startCommand: node admin-backend.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3008
+
+  # SD AI Service (requires GPU plan)
+  - type: web
+    name: weather-nft-sd-ai
+    env: python
+    repo: https://github.com/your-username/weather-nft-live.git
+    dockerfilePath: ./Dockerfile.sd-dev
+    buildCommand: pip install -r requirements-pytorch.txt
+    startCommand: python sd-pytorch-integration.py --server
+    plan: starter_plus  # GPU required
+    envVars:
+      - key: PYTORCH_AI_PORT
+        value: 8000
+
+databases:
+  # Optional PostgreSQL database
+  - name: weather-nft-db
+    databaseName: weathernft
+    user: weathernft
+    plan: free

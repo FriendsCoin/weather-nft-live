@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WeatherNFT Admin Test</title>
+    <style>
+        body { font-family: monospace; background: #1a1a1a; color: #00ff00; padding: 2rem; }
+        .test-section { margin: 2rem 0; padding: 1rem; border: 1px solid #333; border-radius: 8px; }
+        .test-section h3 { color: #00ccff; }
+        button { background: #333; color: #00ff00; border: 1px solid #666; padding: 0.5rem 1rem; margin: 0.5rem; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #444; }
+        .result { background: #222; padding: 1rem; margin: 1rem 0; border-radius: 4px; white-space: pre-wrap; max-height: 200px; overflow-y: auto; }
+        .success { border-left: 4px solid #00ff00; }
+        .error { border-left: 4px solid #ff0000; color: #ff8888; }
+        .warning { border-left: 4px solid #ffaa00; color: #ffcc88; }
+    </style>
+</head>
+<body>
+    <h1>🌦️ WeatherNFT Admin Panel Integration Test</h1>
+    
+    <div class="test-section">
+        <h3>📊 Admin Backend Tests</h3>
+        <button onclick="testAdminHealth()">Test Admin Health</button>
+        <button onclick="testAdminDashboard()">Test Dashboard</button>
+        <div id="admin-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>🧠 SD AI Integration Tests</h3>
+        <button onclick="testSDStatus()">Test SD Status</button>
+        <button onclick="testSDInfo()">Test SD Info</button>
+        <button onclick="testSDPredict()">Test SD Prediction</button>
+        <div id="sd-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>⚡ AI Backend Tests</h3>
+        <button onclick="testAIEvents()">Test AI Events</button>
+        <button onclick="testAIAlgorithms()">Test AI Algorithms</button>
+        <div id="ai-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>🔗 Blockchain Tests</h3>
+        <button onclick="testBlockchainHealth()">Test Blockchain Health</button>
+        <div id="blockchain-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>🌐 Frontend Tests</h3>
+        <button onclick="testFrontend()">Test Frontend</button>
+        <button onclick="testAdminPanel()">Test Admin Panel</button>
+        <div id="frontend-result" class="result"></div>
+    </div>
+
+    <script>
+        const ADMIN_API = 'http://localhost:3008';
+        const AI_API = 'http://localhost:3006';
+        const BLOCKCHAIN_API = 'http://localhost:3007';
+        const FRONTEND_API = 'http://localhost:8081';
+
+        function showResult(elementId, data, type = 'success') {
+            const element = document.getElementById(elementId);
+            element.className = `result ${type}`;
+            element.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+        }
+
+        async function testAdminHealth() {
+            try {
+                const response = await fetch(`${ADMIN_API}/health`);
+                const data = await response.json();
+                showResult('admin-result', `✅ Admin Backend Health: ${data.status}\nService: ${data.service}`, 'success');
+            } catch (error) {
+                showResult('admin-result', `❌ Admin Backend Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testAdminDashboard() {
+            try {
+                const response = await fetch(`${ADMIN_API}/api/dashboard`);
+                const data = await response.json();
+                if (data.success) {
+                    const overview = data.data.overview;
+                    showResult('admin-result', `✅ Dashboard Data:
+Active Events: ${overview.activeEvents}
+Total Users: ${overview.totalUsers}
+AI Predictions: ${overview.aiPredictions}
+Services: ${data.data.services.length} running`, 'success');
+                } else {
+                    showResult('admin-result', `❌ Dashboard failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showResult('admin-result', `❌ Dashboard Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testSDStatus() {
+            try {
+                const response = await fetch(`${ADMIN_API}/api/ai/sd-status`);
+                const data = await response.json();
+                if (data.success) {
+                    showResult('sd-result', `✅ SD AI Status: ${data.data.status}
+Model Status: ${data.data.model_status}
+SD Environment: ${data.data.sd_environment ? '✅' : '❌'}
+PyTorch: ${data.data.pytorch_available ? '✅' : '❌ (fallback)'}
+Algorithms: ${data.data.algorithms_count}`, 'success');
+                } else {
+                    showResult('sd-result', `⚠️ SD AI Not Running: ${data.message}`, 'warning');
+                }
+            } catch (error) {
+                showResult('sd-result', `❌ SD Status Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testSDInfo() {
+            try {
+                const response = await fetch(`${ADMIN_API}/api/ai/sd-info`);
+                const data = await response.json();
+                if (data.success) {
+                    const algorithms = Object.keys(data.data.algorithms);
+                    showResult('sd-result', `✅ SD AI Info:
+Status: ${data.data.status}
+Algorithms: ${algorithms.join(', ')}
+Python: ${data.data.python_version}`, 'success');
+                } else {
+                    showResult('sd-result', `⚠️ SD Info Fallback: ${data.fallback_info.note}`, 'warning');
+                }
+            } catch (error) {
+                showResult('sd-result', `❌ SD Info Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testSDPredict() {
+            try {
+                const testData = {
+                    temperature: 35,
+                    humidity: 85,
+                    pressure: 995,
+                    wind_speed: 45
+                };
+                
+                const response = await fetch(`${ADMIN_API}/api/ai/sd-predict`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(testData)
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    showResult('sd-result', `✅ SD AI Prediction:
+Algorithm: ${data.data.algorithm}
+Event: ${data.data.event_type}
+Confidence: ${(data.data.confidence * 100).toFixed(1)}%
+Rarity: ${data.data.rarity}
+Model: ${data.data.model_type}`, 'success');
+                } else {
+                    showResult('sd-result', `❌ SD Prediction Failed: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                showResult('sd-result', `❌ SD Prediction Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testAIEvents() {
+            try {
+                const response = await fetch(`${AI_API}/api/events`);
+                const data = await response.json();
+                if (data.success) {
+                    showResult('ai-result', `✅ AI Events: Found ${data.data.length} events
+First Event: ${data.data[0]?.uniqueName || 'None'}
+Total Events: ${data.count}`, 'success');
+                } else {
+                    showResult('ai-result', `❌ AI Events Failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showResult('ai-result', `❌ AI Events Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testAIAlgorithms() {
+            try {
+                const response = await fetch(`${AI_API}/api/ai/algorithms`);
+                const data = await response.json();
+                if (data.success) {
+                    const algorithms = data.data.map(a => `${a.name} (${a.accuracy}%)`);
+                    showResult('ai-result', `✅ AI Algorithms: ${algorithms.length} loaded
+${algorithms.join('\n')}
+Total Predictions: ${data.total_predictions}`, 'success');
+                } else {
+                    showResult('ai-result', `❌ AI Algorithms Failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showResult('ai-result', `❌ AI Algorithms Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testBlockchainHealth() {
+            try {
+                const response = await fetch(`${BLOCKCHAIN_API}/health`);
+                const data = await response.json();
+                showResult('blockchain-result', `✅ Blockchain Health: ${data.status}
+Service: ${data.service}
+Network: ${data.network}
+Contracts: ${Object.keys(data.contracts).length} deployed`, 'success');
+            } catch (error) {
+                showResult('blockchain-result', `❌ Blockchain Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testFrontend() {
+            try {
+                const response = await fetch(`${FRONTEND_API}/`);
+                if (response.ok) {
+                    showResult('frontend-result', `✅ Frontend: ${response.status} ${response.statusText}
+Content-Type: ${response.headers.get('content-type')}
+Server: Express`, 'success');
+                } else {
+                    showResult('frontend-result', `⚠️ Frontend: ${response.status} ${response.statusText}`, 'warning');
+                }
+            } catch (error) {
+                showResult('frontend-result', `❌ Frontend Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testAdminPanel() {
+            try {
+                const response = await fetch(`${FRONTEND_API}/admin-futuristic.html`);
+                if (response.ok) {
+                    const size = response.headers.get('content-length');
+                    showResult('frontend-result', `✅ Admin Panel: Available
+Size: ${size} bytes
+Status: ${response.status}
+Cache: ${response.headers.get('cache-control')}`, 'success');
+                } else {
+                    showResult('frontend-result', `⚠️ Admin Panel: ${response.status} ${response.statusText}`, 'warning');
+                }
+            } catch (error) {
+                showResult('frontend-result', `❌ Admin Panel Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-run basic tests on load
+        window.onload = function() {
+            console.log('🧪 Running auto-tests...');
+            setTimeout(testAdminHealth, 500);
+            setTimeout(testSDStatus, 1000);
+            setTimeout(testAIEvents, 1500);
+            setTimeout(testBlockchainHealth, 2000);
+            setTimeout(testFrontend, 2500);
+        };
+    </script>
+</body>
+</html>
