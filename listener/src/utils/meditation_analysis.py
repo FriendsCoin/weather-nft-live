@@ -7,11 +7,20 @@ Improvements based on neurofeedback research:
 - Learning curve tracking across sessions
 - State transition detection
 - Temporal dynamics analysis
+- Performance ratios (alpha+/alpha-, beta+/beta-)
+- Dynamic personal thresholds (individualized targets)
+- Baseline prediction of learning potential
+- Delta reduction tracking during concentration
+- Real-time state feedback messages
 
 References:
 - Kovacevic et al. (2015) "My Virtual Dream" neurofeedback study
-- Shows ~1 minute learning speed for brain state modulation
-- Alpha (8-12 Hz) = relaxation, Beta (18-30 Hz) = concentration
+  * ~1 minute learning speed for brain state modulation
+  * Alpha (8-12 Hz) = relaxation marker
+  * Beta (18-30 Hz) = concentration marker
+  * Personalized thresholds: lower=0.9×mean, upper=1.1×(alpha) or 1.2×(beta)
+  * Performance = (success states) / (failure states)
+  * Baseline delta/beta predicts learning trajectory
 """
 
 import numpy as np
@@ -43,12 +52,13 @@ class MeditationAnalyzer:
         analyzer.plot_learning_progression(learning)
     """
 
-    def __init__(self, sampling_rate: int = 256):
+    def __init__(self, sampling_rate: int = 256, baseline_session: Optional[str] = None):
         """
         Initialize analyzer.
 
         Args:
             sampling_rate: EEG sampling rate (Hz)
+            baseline_session: Path to first session for personalized thresholds
         """
         self.sampling_rate = sampling_rate
 
@@ -62,8 +72,17 @@ class MeditationAnalyzer:
             'gamma': (30.0, 50.0)
         }
 
+        # Personal thresholds (set from baseline session)
+        self.personal_thresholds = None
+        self.baseline_metrics = None
+
+        if baseline_session:
+            self._compute_personal_thresholds(baseline_session)
+
         print("🧘 Meditation Analyzer initialized")
         print(f"   Bands: {list(self.bands.keys())}")
+        if self.personal_thresholds:
+            print(f"   ✓ Personal thresholds loaded from baseline")
 
     def compute_relative_spectral_power(
         self,
@@ -217,6 +236,16 @@ class MeditationAnalyzer:
             for i in range(len(rsps))
         ]
 
+        # Compute performance ratios (new from paper)
+        performance = self.compute_performance_ratios(
+            alpha_arr,
+            beta_arr,
+            use_personal_thresholds=self.personal_thresholds is not None
+        )
+
+        # Compute delta reduction (new from paper)
+        delta_reduction = self.compute_delta_reduction(delta_arr)
+
         # Session-level metrics
         metrics = {
             # Primary metrics
@@ -228,6 +257,8 @@ class MeditationAnalyzer:
             'mean_alpha_rsp': np.mean(alpha_arr),
             'mean_beta_rsp': np.mean(beta_arr),
             'mean_theta_rsp': np.mean(theta_arr),
+            'mean_delta_rsp': np.mean(delta_arr),  # Added delta
+            'mean_gamma_rsp': np.mean([r.get('gamma', 0.1) for r in rsps]),  # Added gamma
 
             # Ratios
             'alpha_beta_ratio': np.mean(alpha_arr) / (np.mean(beta_arr) + 1e-10),
@@ -243,17 +274,36 @@ class MeditationAnalyzer:
             # Quality score (composite)
             'quality_score': self._compute_quality_score(depths, alpha_arr, beta_arr),
 
+            # NEW: Performance ratios from Kovacevic et al. (2015)
+            'alpha_performance': performance['alpha_performance'],
+            'beta_performance': performance['beta_performance'],
+            'alpha_plus_count': performance['alpha_plus'],
+            'alpha_minus_count': performance['alpha_minus'],
+            'beta_plus_count': performance['beta_plus'],
+            'beta_minus_count': performance['beta_minus'],
+            'alpha_success_pct': performance['alpha_success_pct'],
+            'beta_success_pct': performance['beta_success_pct'],
+
+            # NEW: Delta reduction tracking
+            'delta_reduction': delta_reduction['delta_reduction'],
+            'delta_reduction_pct': delta_reduction['delta_reduction_pct'],
+            'delta_reduction_interpretation': delta_reduction['interpretation'],
+
             # Time series
             'depth_timeseries': depths,
             'alpha_timeseries': alpha_arr.tolist(),
-            'beta_timeseries': beta_arr.tolist()
+            'beta_timeseries': beta_arr.tolist(),
+            'delta_timeseries': delta_arr.tolist()
         }
 
         print(f"\n📊 Session Metrics:")
         print(f"   Meditation depth: {metrics['mean_depth']:.1f}/100")
         print(f"   Alpha/Beta ratio: {metrics['alpha_beta_ratio']:.2f}")
+        print(f"   Alpha Performance (aP): {metrics['alpha_performance']:.2f} ({metrics['alpha_success_pct']:.0f}% success)")
+        print(f"   Beta Performance (bP): {metrics['beta_performance']:.2f} ({metrics['beta_success_pct']:.0f}% success)")
         print(f"   Stability: {metrics['depth_stability']:.2f}")
         print(f"   Quality score: {metrics['quality_score']:.1f}/100")
+        print(f"   Delta reduction: {metrics['delta_reduction_interpretation']}")
 
         return metrics
 
@@ -395,6 +445,368 @@ class MeditationAnalyzer:
                 })
 
         return transitions
+
+    def _compute_personal_thresholds(self, baseline_session: str):
+        """
+        Compute personalized thresholds from baseline (first) session.
+
+        Based on Kovacevic et al. (2015):
+        - Lower threshold = 0.9 × mean RSP
+        - Upper threshold = 1.1 × mean RSP (alpha) or 1.2 × mean RSP (beta)
+
+        Args:
+            baseline_session: Path to baseline session features
+        """
+        print(f"\n📊 Computing personal thresholds from baseline...")
+
+        # Load baseline
+        baseline_df = pd.read_hdf(baseline_session, key='features')
+        self.baseline_metrics = self.analyze_session(baseline_df)
+
+        # Get mean RSP values
+        mean_alpha = self.baseline_metrics['mean_alpha_rsp']
+        mean_beta = self.baseline_metrics['mean_beta_rsp']
+        mean_theta = self.baseline_metrics['mean_theta_rsp']
+        mean_delta = self.baseline_metrics.get('mean_delta_rsp', 0.2)  # fallback
+
+        self.personal_thresholds = {
+            'alpha': {
+                'lower': 0.9 * mean_alpha,
+                'upper': 1.1 * mean_alpha
+            },
+            'beta': {
+                'lower': 0.9 * mean_beta,
+                'upper': 1.2 * mean_beta  # Higher multiplier for beta
+            },
+            'theta': {
+                'lower': 0.9 * mean_theta,
+                'upper': 1.1 * mean_theta
+            },
+            'delta': {
+                'lower': 0.9 * mean_delta,
+                'upper': 1.1 * mean_delta
+            }
+        }
+
+        print(f"   ✓ Alpha thresholds: {self.personal_thresholds['alpha']['lower']:.3f} - {self.personal_thresholds['alpha']['upper']:.3f}")
+        print(f"   ✓ Beta thresholds: {self.personal_thresholds['beta']['lower']:.3f} - {self.personal_thresholds['beta']['upper']:.3f}")
+
+    def compute_performance_ratios(
+        self,
+        alpha_timeseries: np.ndarray,
+        beta_timeseries: np.ndarray,
+        use_personal_thresholds: bool = True
+    ) -> Dict:
+        """
+        Compute performance ratios based on Kovacevic et al. (2015).
+
+        Performance metrics:
+        - Alpha Performance (aP) = (alpha+ states) / (alpha- states)
+        - Beta Performance (bP) = (beta+ states) / (beta- states)
+
+        Where:
+        - alpha+ = RSP above upper threshold (good relaxation)
+        - alpha- = RSP below lower threshold (too tense)
+        - beta+ = RSP above upper threshold (good concentration)
+        - beta- = RSP below lower threshold (mind wandering)
+
+        Args:
+            alpha_timeseries: Alpha RSP values over time
+            beta_timeseries: Beta RSP values over time
+            use_personal_thresholds: Use personalized thresholds (default: True)
+
+        Returns:
+            Dict with performance metrics and state counts
+        """
+        # Get thresholds
+        if use_personal_thresholds and self.personal_thresholds:
+            alpha_lower = self.personal_thresholds['alpha']['lower']
+            alpha_upper = self.personal_thresholds['alpha']['upper']
+            beta_lower = self.personal_thresholds['beta']['lower']
+            beta_upper = self.personal_thresholds['beta']['upper']
+        else:
+            # Generic thresholds (based on typical RSP values ~0.15-0.35)
+            alpha_mean = np.mean(alpha_timeseries)
+            beta_mean = np.mean(beta_timeseries)
+            alpha_lower, alpha_upper = 0.9 * alpha_mean, 1.1 * alpha_mean
+            beta_lower, beta_upper = 0.9 * beta_mean, 1.2 * beta_mean
+
+        # Count states
+        alpha_plus = np.sum(alpha_timeseries > alpha_upper)
+        alpha_minus = np.sum(alpha_timeseries < alpha_lower)
+        beta_plus = np.sum(beta_timeseries > beta_upper)
+        beta_minus = np.sum(beta_timeseries < beta_lower)
+
+        # Compute performance ratios
+        # Add 1 to denominator to avoid division by zero
+        alpha_performance = alpha_plus / (alpha_minus + 1)
+        beta_performance = beta_plus / (beta_minus + 1)
+
+        # Success percentages
+        total_windows = len(alpha_timeseries)
+        alpha_success_pct = (alpha_plus / total_windows) * 100
+        beta_success_pct = (beta_plus / total_windows) * 100
+
+        return {
+            'alpha_performance': alpha_performance,
+            'beta_performance': beta_performance,
+            'alpha_plus': int(alpha_plus),
+            'alpha_minus': int(alpha_minus),
+            'beta_plus': int(beta_plus),
+            'beta_minus': int(beta_minus),
+            'alpha_success_pct': alpha_success_pct,
+            'beta_success_pct': beta_success_pct,
+            'thresholds': {
+                'alpha_lower': alpha_lower,
+                'alpha_upper': alpha_upper,
+                'beta_lower': beta_lower,
+                'beta_upper': beta_upper
+            }
+        }
+
+    def compute_training_effect(
+        self,
+        baseline_performance: Dict,
+        current_performance: Dict,
+        metric: str = 'beta_performance'
+    ) -> float:
+        """
+        Compute training effect (% improvement from baseline).
+
+        Based on Kovacevic et al. (2015):
+        Training Effect = ((current - baseline) / baseline) × 100
+
+        Args:
+            baseline_performance: Performance dict from first session
+            current_performance: Performance dict from current session
+            metric: Which performance metric to track
+
+        Returns:
+            Training effect percentage (e.g., 169% = major improvement)
+        """
+        baseline_value = baseline_performance[metric]
+        current_value = current_performance[metric]
+
+        if baseline_value == 0:
+            return 0.0
+
+        training_effect = ((current_value - baseline_value) / baseline_value) * 100
+
+        return training_effect
+
+    def predict_learning_potential(self, first_session_metrics: Dict) -> Dict:
+        """
+        Predict learning potential from first session.
+
+        Based on Kovacevic et al. (2015) finding:
+        - High delta + low beta/gamma at baseline → 169% improvement (fast learner)
+        - Low delta + high beta/gamma at baseline → -44% improvement (slow learner)
+
+        This helps identify if someone is naturally predisposed to
+        neurofeedback learning or needs a different approach.
+
+        Args:
+            first_session_metrics: Metrics from analyze_session() on first session
+
+        Returns:
+            Dict with prediction and recommendations
+        """
+        # Extract baseline RSP values
+        delta_rsp = first_session_metrics.get('mean_delta_rsp',
+                                                first_session_metrics.get('delta_rsp', 0.2))
+        beta_rsp = first_session_metrics['mean_beta_rsp']
+        gamma_rsp = first_session_metrics.get('mean_gamma_rsp', 0.1)
+
+        # Compute predictor score
+        # High delta + low beta/gamma = good predictor
+        predictor_score = delta_rsp - (beta_rsp + gamma_rsp)
+
+        # Classify learning potential
+        if predictor_score > 0.05:
+            category = "fast_learner"
+            expected_improvement = "+100% to +200%"
+            description = "High learning potential! Your baseline brain patterns suggest you'll respond very well to meditation practice."
+            recommendations = [
+                "You're naturally suited for meditation practice",
+                "Expect to see rapid improvements (weeks, not months)",
+                "Focus on consistency - even short daily sessions will compound",
+                "Track your progress to see the rapid gains"
+            ]
+        elif predictor_score > -0.05:
+            category = "moderate_learner"
+            expected_improvement = "+20% to +80%"
+            description = "Good learning potential. You'll likely see steady, consistent progress with regular practice."
+            recommendations = [
+                "Steady, consistent practice is key",
+                "Expect gradual improvements over 4-8 weeks",
+                "Don't get discouraged - your gains will be steady and sustainable",
+                "Consider longer sessions (15-20 minutes) for best results"
+            ]
+        else:
+            category = "slow_learner"
+            expected_improvement = "-20% to +40%"
+            description = "Your baseline patterns suggest meditation may be initially challenging. Consider complementary approaches."
+            recommendations = [
+                "Don't be discouraged - you may need a different approach",
+                "Try body-scan meditation or guided practices first",
+                "Consider combining with breathwork or movement (yoga, tai chi)",
+                "Longer sessions (20-30 min) may work better than short ones",
+                "Your brain may need more time to 'unlearn' active patterns"
+            ]
+
+        return {
+            'category': category,
+            'predictor_score': predictor_score,
+            'expected_improvement': expected_improvement,
+            'description': description,
+            'recommendations': recommendations,
+            'baseline_features': {
+                'delta_rsp': delta_rsp,
+                'beta_rsp': beta_rsp,
+                'gamma_rsp': gamma_rsp
+            }
+        }
+
+    def get_state_message(
+        self,
+        alpha_rsp: float,
+        beta_rsp: float,
+        use_personal_thresholds: bool = True
+    ) -> Dict:
+        """
+        Get real-time state feedback message.
+
+        Based on Kovacevic et al. (2015) feedback system:
+        - a+ = "Good relaxation!" (alpha above upper threshold)
+        - a- = "Too tense" (alpha below lower threshold)
+        - b+ = "Good concentration!" (beta above upper threshold)
+        - b- = "Mind wandering" (beta below lower threshold)
+
+        Args:
+            alpha_rsp: Current alpha RSP value
+            beta_rsp: Current beta RSP value
+            use_personal_thresholds: Use personalized thresholds
+
+        Returns:
+            Dict with state codes and messages
+        """
+        # Get thresholds
+        if use_personal_thresholds and self.personal_thresholds:
+            alpha_lower = self.personal_thresholds['alpha']['lower']
+            alpha_upper = self.personal_thresholds['alpha']['upper']
+            beta_lower = self.personal_thresholds['beta']['lower']
+            beta_upper = self.personal_thresholds['beta']['upper']
+        else:
+            # Generic thresholds
+            alpha_lower, alpha_upper = 0.18, 0.26
+            beta_lower, beta_upper = 0.15, 0.24
+
+        # Determine alpha state
+        if alpha_rsp > alpha_upper:
+            alpha_state = "a+"
+            alpha_message = "Good relaxation! Deep meditative state."
+        elif alpha_rsp < alpha_lower:
+            alpha_state = "a-"
+            alpha_message = "Too tense. Try to release tension and relax."
+        else:
+            alpha_state = "a="
+            alpha_message = "Moderate relaxation. Baseline state."
+
+        # Determine beta state
+        if beta_rsp > beta_upper:
+            beta_state = "b+"
+            beta_message = "Strong concentration! Mind is active and focused."
+        elif beta_rsp < beta_lower:
+            beta_state = "b-"
+            beta_message = "Mind wandering. Gently return attention to breath."
+        else:
+            beta_state = "b="
+            beta_message = "Moderate concentration. Baseline state."
+
+        # Combined interpretation
+        if alpha_state == "a+" and beta_state == "b-":
+            combined = "🧘 Perfect meditation state: Relaxed yet aware"
+        elif alpha_state == "a+" and beta_state == "b+":
+            combined = "🎯 Focused relaxation: Calm concentration"
+        elif alpha_state == "a-" and beta_state == "b+":
+            combined = "😤 Tense concentration: Try to relax while focusing"
+        elif alpha_state == "a-" and beta_state == "b-":
+            combined = "😴 Low engagement: May be drowsy or distracted"
+        else:
+            combined = "😌 Neutral state: Baseline meditation"
+
+        return {
+            'alpha_state': alpha_state,
+            'alpha_message': alpha_message,
+            'beta_state': beta_state,
+            'beta_message': beta_message,
+            'combined_state': combined,
+            'values': {
+                'alpha_rsp': alpha_rsp,
+                'beta_rsp': beta_rsp
+            },
+            'thresholds': {
+                'alpha_lower': alpha_lower,
+                'alpha_upper': alpha_upper,
+                'beta_lower': beta_lower,
+                'beta_upper': beta_upper
+            }
+        }
+
+    def compute_delta_reduction(
+        self,
+        delta_timeseries: np.ndarray,
+        window_size: int = 30
+    ) -> Dict:
+        """
+        Track delta reduction during meditation.
+
+        Kovacevic et al. (2015) found that during concentration tasks,
+        delta power (<3 Hz) should decrease (staying awake, not drowsy).
+
+        This is a complementary metric to beta increase.
+
+        Args:
+            delta_timeseries: Delta RSP values over time
+            window_size: Windows to compare (default: 30 = ~1 minute)
+
+        Returns:
+            Dict with delta reduction metrics
+        """
+        if len(delta_timeseries) < window_size * 2:
+            return {
+                'delta_reduction': 0.0,
+                'early_mean': np.mean(delta_timeseries),
+                'late_mean': np.mean(delta_timeseries),
+                'sufficient_data': False
+            }
+
+        # Compare early vs late session
+        early_delta = np.mean(delta_timeseries[:window_size])
+        late_delta = np.mean(delta_timeseries[-window_size:])
+
+        # Reduction (positive = good, delta decreased)
+        delta_reduction = early_delta - late_delta
+        delta_reduction_pct = (delta_reduction / early_delta) * 100 if early_delta > 0 else 0
+
+        # Interpret
+        if delta_reduction_pct > 10:
+            interpretation = "Excellent: Maintained alertness throughout session"
+        elif delta_reduction_pct > 0:
+            interpretation = "Good: Slight improvement in alertness"
+        elif delta_reduction_pct > -10:
+            interpretation = "Stable: Maintained consistent alertness"
+        else:
+            interpretation = "Caution: Increasing drowsiness, may need shorter sessions"
+
+        return {
+            'delta_reduction': delta_reduction,
+            'delta_reduction_pct': delta_reduction_pct,
+            'early_mean': early_delta,
+            'late_mean': late_delta,
+            'interpretation': interpretation,
+            'sufficient_data': True
+        }
 
 
 # CLI interface
