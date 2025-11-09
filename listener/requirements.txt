@@ -41,10 +41,17 @@ requests>=2.31.0            # HTTP requests
 aiohttp>=3.9.0              # Async HTTP (if needed)
 
 # ============================================================
-# IMAGE PROCESSING
+# IMAGE & VIDEO PROCESSING
 # ============================================================
 Pillow>=10.1.0              # Image manipulation
-opencv-python>=4.8.0        # Computer vision utilities
+opencv-python>=4.8.0        # Computer vision utilities (video generation)
+
+# ============================================================
+# AUDIO & VOICE GENERATION
+# ============================================================
+TTS>=0.22.0                 # Coqui TTS for voice synthesis
+soundfile>=0.12.1           # Audio I/O
+pydub>=0.25.1               # Audio manipulation (optional)
 
 # ============================================================
 # JUPYTER NOTEBOOKS (optional but recommended)
