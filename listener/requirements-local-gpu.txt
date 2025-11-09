@@ -1,0 +1,21 @@
+# Additional dependencies for running Stable Diffusion locally on GPU
+# For RTX 2080 8GB and similar cards
+
+# Core diffusion libraries
+diffusers>=0.25.0           # HuggingFace Diffusers (Stable Diffusion)
+transformers>=4.36.0        # Text encoders (CLIP)
+accelerate>=0.25.0          # GPU optimization utilities
+safetensors>=0.4.0          # Safe model loading
+
+# Memory optimization (CRITICAL for 8GB VRAM!)
+xformers>=0.0.23            # Memory-efficient attention
+# Alternative: pip install xformers --index-url https://download.pytorch.org/whl/cu118
+
+# Optional: Additional schedulers
+k-diffusion>=0.1.0          # K-diffusion schedulers
+
+# Installation:
+# pip install -r requirements.txt  # Base requirements first
+# pip install -r requirements-local-gpu.txt  # Then GPU support
+
+# See docs/LOW_MEMORY_GPU.md for complete RTX 2080 setup guide

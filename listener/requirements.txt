@@ -36,9 +36,22 @@ tqdm>=4.66.0                # Progress bars
 # API INTEGRATIONS
 # ============================================================
 anthropic>=0.7.0            # Claude API (for poetic interpretations)
-replicate>=0.22.0           # Stable Diffusion API (image generation)
+replicate>=0.22.0           # Stable Diffusion API (cloud-based image generation)
 requests>=2.31.0            # HTTP requests
 aiohttp>=3.9.0              # Async HTTP (if needed)
+
+# ============================================================
+# LOCAL GPU INFERENCE (Optional - for running SD locally)
+# ============================================================
+# Uncomment if you want to run Stable Diffusion on your GPU:
+# diffusers>=0.25.0         # HuggingFace Diffusers (Stable Diffusion)
+# transformers>=4.36.0      # Text encoders for SD
+# accelerate>=0.25.0        # GPU optimization utilities
+# xformers>=0.0.23          # Memory-efficient attention (CRITICAL for 8GB VRAM)
+# safetensors>=0.4.0        # Safe model loading
+#
+# Install with: pip install diffusers transformers accelerate xformers safetensors
+# See docs/LOW_MEMORY_GPU.md for RTX 2080 8GB optimization guide
 
 # ============================================================
 # IMAGE & VIDEO PROCESSING

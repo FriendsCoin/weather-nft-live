@@ -1,0 +1,71 @@
+# Low-Memory GPU Configuration for RTX 2080 8GB
+# Optimized for 8GB VRAM with safety margin
+
+gpu:
+  device: "cuda"
+  max_vram_gb: 8
+  safety_margin_gb: 1  # Reserve 1GB for system
+
+# Stable Diffusion Settings
+stable_diffusion:
+  model: "runwayml/stable-diffusion-v1-5"  # 4GB instead of SDXL's 8GB
+  precision: "fp16"  # Half precision saves 50% VRAM
+
+  # Memory optimizations
+  enable_attention_slicing: true
+  attention_slice_size: "auto"  # or 1 for maximum savings
+  enable_vae_tiling: true
+  enable_vae_slicing: true
+  enable_cpu_offload: false  # Keep on GPU if possible, slower if enabled
+  enable_sequential_cpu_offload: false  # Last resort, very slow
+
+  # xformers (install separately: pip install xformers)
+  enable_xformers: true  # 20-30% VRAM reduction + faster
+
+  # Generation settings
+  image_size: 512  # Don't go higher than 512x512 on 8GB
+  batch_size: 1  # Never batch on 8GB
+  num_inference_steps: 30  # Reduce from 50 for faster generation
+
+# VAE Model Settings (lightweight, no issues)
+vae:
+  device: "cuda"
+  batch_size: 32  # VAE is tiny, can batch
+  precision: "fp32"  # Keep high precision for latent space
+
+# Video Generation Settings
+video:
+  mode: "breathing"  # Default to local CPU mode, safest
+
+  # If using AnimateDiff
+  animatediff:
+    model: "guoyww/animatediff-motion-adapter-v1-5-2"  # Smaller v1.5 base
+    precision: "fp16"
+    enable_xformers: true
+    max_frames: 16  # Reduce from 24
+    resolution: 512  # Max 512x512
+
+  # ComfyUI settings
+  comfyui:
+    use_lowvram: true
+    use_medvram: false  # Only if desperate
+
+  # Breathing animation (CPU, no VRAM)
+  breathing:
+    max_resolution: 1024  # Can go higher, uses CPU
+
+# Audio/Voice (CPU-based, no VRAM impact)
+audio:
+  device: "cpu"  # TTS uses CPU
+  coqui_use_gpu: false  # Keep on CPU to save VRAM
+
+# Batch Processing
+processing:
+  sequential: true  # Process one at a time
+  clear_cache_between: true  # Clear VRAM between generations
+
+# Monitoring
+monitoring:
+  log_vram_usage: true
+  warn_threshold_gb: 7.0  # Warn at 7GB usage
+  error_threshold_gb: 7.8  # Error at 7.8GB usage
