@@ -10,6 +10,7 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const IPFSService = require('./ipfs-service');
+const AIArtGenerator = require('./ai-art-generator');
 
 const app = express();
 const PORT = process.env.NFT_SERVICE_PORT || 3009;
@@ -18,11 +19,16 @@ const PORT = process.env.NFT_SERVICE_PORT || 3009;
 const upload = multer({ storage: multer.memoryStorage() });
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' })); // Increase limit for base64 images
 
-// Initialize IPFS service
+// Initialize services
 const ipfsService = new IPFSService({
   provider: process.env.IPFS_PROVIDER || 'pinata'
+});
+
+const artGenerator = new AIArtGenerator({
+  sdApiUrl: process.env.SD_AI_URL,
+  useRealSD: process.env.USE_REAL_AI === 'true'
 });
 
 // In-memory storage for NFT minting queue
@@ -34,6 +40,7 @@ app.get('/health', (req, res) => {
     status: 'OK',
     service: 'WeatherNFT NFT Service',
     ipfs_provider: ipfsService.config.provider,
+    ai_art_enabled: artGenerator.config.useRealSD,
     queue_size: mintingQueue.size,
     timestamp: new Date().toISOString()
   });
@@ -57,6 +64,154 @@ app.get('/api/ipfs/test', async (req, res) => {
 });
 
 /**
+ * Generate AI art from weather data
+ * POST /api/art/generate
+ */
+app.post('/api/art/generate', async (req, res) => {
+  try {
+    const { weatherData, eventData, location, rarity } = req.body;
+
+    if (!weatherData || !eventData) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: weatherData, eventData'
+      });
+    }
+
+    console.log(`🎨 Generating AI art for ${eventData.type}...`);
+
+    const imageBuffer = await artGenerator.generateArt({
+      weatherData,
+      eventData,
+      location: location || { city: 'Unknown', country: 'Unknown', lat: 0, lng: 0 },
+      rarity: rarity || 'common'
+    });
+
+    // Convert buffer to base64
+    const imageBase64 = imageBuffer.toString('base64');
+
+    res.json({
+      success: true,
+      message: 'AI art generated successfully',
+      data: {
+        imageBase64: imageBase64,
+        format: 'image/png',
+        size: imageBuffer.length
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Art generation failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Create complete NFT with AI art generation
+ * POST /api/nft/create-with-art
+ * Generates art automatically from weather data
+ */
+app.post('/api/nft/create-with-art', async (req, res) => {
+  try {
+    const {
+      eventId,
+      weatherData,
+      eventData,
+      location,
+      owner,
+      rarity,
+      algorithm
+    } = req.body;
+
+    if (!eventId || !weatherData || !eventData) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: eventId, weatherData, eventData'
+      });
+    }
+
+    console.log(`🎨 Creating NFT with AI art for event ${eventId}...`);
+
+    // Step 1: Generate AI art
+    console.log('🖼️  Generating AI art...');
+    const imageBuffer = await artGenerator.generateArt({
+      weatherData,
+      eventData,
+      location: location || { city: 'Unknown', country: 'Unknown', lat: 0, lng: 0 },
+      rarity: rarity || 'common'
+    });
+    console.log(`✅ Art generated (${imageBuffer.length} bytes)`);
+
+    // Step 2: Upload image to IPFS
+    console.log('📤 Uploading image to IPFS...');
+    const imageUpload = await ipfsService.uploadImage(
+      imageBuffer,
+      `weather-nft-${eventId}.png`
+    );
+    console.log(`✅ Image uploaded: ${imageUpload.hash}`);
+
+    // Step 3: Generate metadata
+    console.log('📝 Generating NFT metadata...');
+    const metadata = ipfsService.generateMetadata({
+      name: `WeatherNFT #${eventId}`,
+      description: null,
+      imageHash: imageUpload.hash,
+      weatherData,
+      eventData,
+      location: location || { city: 'Unknown', country: 'Unknown', lat: 0, lng: 0 },
+      captureTimestamp: Date.now(),
+      rarity: rarity || 'common',
+      algorithm: algorithm || 'Unknown'
+    });
+
+    // Step 4: Upload metadata to IPFS
+    console.log('📤 Uploading metadata to IPFS...');
+    const metadataUpload = await ipfsService.uploadMetadata(metadata);
+    console.log(`✅ Metadata uploaded: ${metadataUpload.hash}`);
+
+    // Step 5: Add to minting queue
+    const nftData = {
+      id: eventId,
+      owner: owner || 'pending',
+      imageHash: imageUpload.hash,
+      imageUrl: imageUpload.url,
+      metadataHash: metadataUpload.hash,
+      metadataUrl: metadataUpload.url,
+      metadata: metadata,
+      status: 'pending_mint',
+      createdAt: Date.now()
+    };
+
+    mintingQueue.set(eventId, nftData);
+    console.log(`✅ NFT ${eventId} ready for minting`);
+
+    res.json({
+      success: true,
+      message: 'NFT created with AI-generated art',
+      data: {
+        eventId: eventId,
+        imageHash: imageUpload.hash,
+        imageUrl: imageUpload.url,
+        metadataHash: metadataUpload.hash,
+        metadataUrl: metadataUpload.url,
+        imagePreview: imageBuffer.toString('base64'),
+        status: 'ready_to_mint'
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ NFT creation with art failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
  * Create complete NFT from weather event
  * POST /api/nft/create
  * Body: {
@@ -64,7 +219,7 @@ app.get('/api/ipfs/test', async (req, res) => {
  *   weatherData: object,
  *   eventData: object,
  *   location: object,
- *   imageBuffer: base64 string,
+ *   imageBase64: base64 string,
  *   owner: string (wallet address)
  * }
  */
