@@ -1,0 +1,68 @@
+# THE LISTENER - Python Dependencies
+
+# ============================================================
+# EEG DATA ACQUISITION & PROCESSING
+# ============================================================
+muselsl>=2.2.0              # Muse S headband streaming
+pylsl>=1.16.0               # Lab Streaming Layer protocol
+mne>=1.5.0                  # EEG signal processing (powerful!)
+scipy>=1.11.0               # Signal processing (filtering, FFT)
+numpy>=1.24.0               # Numerical computing
+
+# ============================================================
+# MACHINE LEARNING (VAE)
+# ============================================================
+torch>=2.1.0                # PyTorch for VAE
+torchvision>=0.16.0         # Vision utilities
+scikit-learn>=1.3.0         # ML utilities, train/val splits
+
+# ============================================================
+# DATA HANDLING & STORAGE
+# ============================================================
+h5py>=3.10.0                # HDF5 file format (efficient for timeseries)
+pandas>=2.1.0               # Data manipulation
+pyyaml>=6.0                 # Configuration files
+
+# ============================================================
+# VISUALIZATION & MONITORING
+# ============================================================
+matplotlib>=3.8.0           # Plotting
+seaborn>=0.13.0             # Statistical visualization
+plotly>=5.18.0              # Interactive plots
+umap-learn>=0.5.5           # Latent space visualization (better than t-SNE)
+tqdm>=4.66.0                # Progress bars
+
+# ============================================================
+# API INTEGRATIONS
+# ============================================================
+anthropic>=0.7.0            # Claude API (for poetic interpretations)
+replicate>=0.22.0           # Stable Diffusion API (image generation)
+requests>=2.31.0            # HTTP requests
+aiohttp>=3.9.0              # Async HTTP (if needed)
+
+# ============================================================
+# IMAGE PROCESSING
+# ============================================================
+Pillow>=10.1.0              # Image manipulation
+opencv-python>=4.8.0        # Computer vision utilities
+
+# ============================================================
+# JUPYTER NOTEBOOKS (optional but recommended)
+# ============================================================
+jupyter>=1.0.0              # Jupyter notebooks
+ipywidgets>=8.1.0           # Interactive widgets
+notebook>=7.0.0             # Notebook interface
+
+# ============================================================
+# UTILITIES
+# ============================================================
+python-dotenv>=1.0.0        # Environment variables (for API keys)
+click>=8.1.0                # CLI interface
+rich>=13.7.0                # Beautiful terminal output
+
+# ============================================================
+# DEVELOPMENT & TESTING (optional)
+# ============================================================
+pytest>=7.4.0               # Testing framework
+black>=23.12.0              # Code formatting
+isort>=5.13.0               # Import sorting
