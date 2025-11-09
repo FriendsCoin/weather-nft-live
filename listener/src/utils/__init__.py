@@ -5,6 +5,7 @@ from .image_gen import ImageGenerator
 from .visualization import Visualizer
 from .video_gen import VideoGenerator
 from .audio_gen import VoiceGenerator
+from .meditation_analysis import MeditationAnalyzer
 
 __all__ = [
     "LLMInterpreter",
@@ -12,4 +13,5 @@ __all__ = [
     "Visualizer",
     "VideoGenerator",
     "VoiceGenerator",
+    "MeditationAnalyzer",
 ]
