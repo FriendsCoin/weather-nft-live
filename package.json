@@ -13,6 +13,7 @@
     "blockchain": "node src/backend/blockchain-service.js",
     "nft": "node src/backend/nft-service.js",
     "guild": "node src/backend/guild-service.js",
+    "demo": "node demo-user-experience.js",
     "ai:mock": "python3 src/backend/simple-sd-ai-mock.py",
     "ai:real": "python3 src/backend/sd-pytorch-integration.py"
   },

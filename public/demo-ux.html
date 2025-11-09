@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WeatherNFT - Complete User Experience Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .demo-controls {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .control-group select,
+        .control-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .control-group select:focus,
+        .control-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.1em;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .progress-section {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+
+        .step {
+            margin-bottom: 25px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 5px solid #ddd;
+            opacity: 0.5;
+            transition: all 0.3s;
+        }
+
+        .step.active {
+            opacity: 1;
+            border-left-color: #667eea;
+            background: linear-gradient(90deg, #f0f3ff 0%, #f8f9fa 100%);
+        }
+
+        .step.completed {
+            opacity: 1;
+            border-left-color: #28a745;
+            background: linear-gradient(90deg, #e8f5e9 0%, #f8f9fa 100%);
+        }
+
+        .step.error {
+            opacity: 1;
+            border-left-color: #dc3545;
+            background: linear-gradient(90deg, #ffebee 0%, #f8f9fa 100%);
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .step-number {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background: #ddd;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+            transition: all 0.3s;
+        }
+
+        .step.active .step-number {
+            background: #667eea;
+            animation: pulse 2s infinite;
+        }
+
+        .step.completed .step-number {
+            background: #28a745;
+        }
+
+        .step.error .step-number {
+            background: #dc3545;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .step-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .step-content {
+            margin-left: 50px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .step-data {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .result-box {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-top: 20px;
+            display: none;
+        }
+
+        .result-box.show {
+            display: block;
+        }
+
+        .result-title {
+            font-size: 1.5em;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .nft-preview {
+            max-width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin: 20px 0;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            border-radius: 10px;
+            color: white;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .log-output {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+
+        .log-line {
+            margin-bottom: 5px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌦️ WeatherNFT</h1>
+            <p>Complete User Experience Simulation</p>
+        </div>
+
+        <div class="demo-controls">
+            <h3 style="margin-bottom: 20px;">Configure Weather Event</h3>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="control-group">
+                    <label>Weather Condition</label>
+                    <select id="weatherCondition">
+                        <option value="stormy">⚡ Stormy</option>
+                        <option value="rainy">🌧️ Rainy</option>
+                        <option value="snowy">❄️ Snowy</option>
+                        <option value="clear">☀️ Clear</option>
+                        <option value="cloudy">☁️ Cloudy</option>
+                        <option value="foggy">🌫️ Foggy</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>Event Rarity</label>
+                    <select id="rarity">
+                        <option value="common">Common (1x)</option>
+                        <option value="uncommon">Uncommon (2x)</option>
+                        <option value="rare">Rare (5x)</option>
+                        <option value="epic" selected>Epic (10x)</option>
+                        <option value="legendary">Legendary (30x)</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>Location</label>
+                    <select id="location">
+                        <option value="miami">Miami, USA</option>
+                        <option value="tokyo">Tokyo, Japan</option>
+                        <option value="london">London, UK</option>
+                        <option value="sydney">Sydney, Australia</option>
+                        <option value="reykjavik">Reykjavik, Iceland</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>AI Algorithm</label>
+                    <select id="algorithm">
+                        <option value="storm-hunter">Storm Hunter (4 XTZ/mo)</option>
+                        <option value="aurora-predictor">Aurora Predictor (3 XTZ/mo)</option>
+                        <option value="micro-climate">Micro Climate (2 XTZ/mo)</option>
+                        <option value="extreme-weather">Extreme Weather (4 XTZ/mo)</option>
+                        <option value="temperature-anomaly">Temperature Anomaly (1 XTZ/mo)</option>
+                    </select>
+                </div>
+            </div>
+
+            <button class="btn-primary" id="startDemo" style="margin-top: 20px;">
+                🚀 Start User Experience Simulation
+            </button>
+        </div>
+
+        <div class="progress-section">
+            <h3 style="margin-bottom: 20px;">Simulation Progress</h3>
+
+            <div class="step" id="step1">
+                <div class="step-header">
+                    <div class="step-number">1</div>
+                    <div class="step-title">Weather Event Detection</div>
+                </div>
+                <div class="step-content" id="step1-content">
+                    AI algorithms monitor global weather patterns...
+                </div>
+            </div>
+
+            <div class="step" id="step2">
+                <div class="step-header">
+                    <div class="step-number">2</div>
+                    <div class="step-title">Guild Creation & Algorithm Rental</div>
+                </div>
+                <div class="step-content" id="step2-content">
+                    User creates guild and rents AI algorithm...
+                </div>
+            </div>
+
+            <div class="step" id="step3">
+                <div class="step-header">
+                    <div class="step-number">3</div>
+                    <div class="step-title">AI Art Generation</div>
+                </div>
+                <div class="step-content" id="step3-content">
+                    Generating unique art from weather data...
+                </div>
+            </div>
+
+            <div class="step" id="step4">
+                <div class="step-header">
+                    <div class="step-number">4</div>
+                    <div class="step-title">NFT Creation & IPFS Upload</div>
+                </div>
+                <div class="step-content" id="step4-content">
+                    Creating NFT and uploading to IPFS...
+                </div>
+            </div>
+
+            <div class="step" id="step5">
+                <div class="step-header">
+                    <div class="step-number">5</div>
+                    <div class="step-title">Revenue Distribution</div>
+                </div>
+                <div class="step-content" id="step5-content">
+                    Distributing rewards to guild and user...
+                </div>
+            </div>
+        </div>
+
+        <div class="result-box" id="resultBox">
+            <div class="result-title">🎉 Simulation Complete!</div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="statRevenue">0</div>
+                    <div class="stat-label">XTZ Earned</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="statGuild">0</div>
+                    <div class="stat-label">Guild Share</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="statRarity">-</div>
+                    <div class="stat-label">NFT Rarity</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="statAlgorithm">-</div>
+                    <div class="stat-label">AI Algorithm</div>
+                </div>
+            </div>
+
+            <div id="nftPreview"></div>
+
+            <div class="log-output" id="logOutput"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost';
+        const PORTS = {
+            nft: 3009,
+            guild: 3010
+        };
+
+        const locations = {
+            miami: { city: 'Miami', country: 'USA', lat: 25.7617, lng: -80.1918 },
+            tokyo: { city: 'Tokyo', country: 'Japan', lat: 35.6762, lng: 139.6503 },
+            london: { city: 'London', country: 'UK', lat: 51.5074, lng: -0.1278 },
+            sydney: { city: 'Sydney', country: 'Australia', lat: -33.8688, lng: 151.2093 },
+            reykjavik: { city: 'Reykjavik', country: 'Iceland', lat: 64.1466, lng: -21.9426 }
+        };
+
+        const algorithmNames = {
+            'storm-hunter': 'Storm Hunter',
+            'aurora-predictor': 'Aurora Predictor',
+            'micro-climate': 'Micro Climate',
+            'extreme-weather': 'Extreme Weather',
+            'temperature-anomaly': 'Temperature Anomaly'
+        };
+
+        let currentGuildId = null;
+
+        function addLog(message) {
+            const logOutput = document.getElementById('logOutput');
+            const logLine = document.createElement('div');
+            logLine.className = 'log-line';
+            logLine.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logOutput.appendChild(logLine);
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+
+        function setStepStatus(stepId, status) {
+            const step = document.getElementById(stepId);
+            step.classList.remove('active', 'completed', 'error');
+            step.classList.add(status);
+        }
+
+        function updateStepContent(stepId, content) {
+            document.getElementById(`${stepId}-content`).innerHTML = content;
+        }
+
+        async function apiCall(service, endpoint, method = 'GET', data = null) {
+            const url = `${API_BASE}:${PORTS[service]}${endpoint}`;
+            const options = {
+                method,
+                headers: { 'Content-Type': 'application/json' }
+            };
+            if (data) options.body = JSON.stringify(data);
+
+            const response = await fetch(url, options);
+            return await response.json();
+        }
+
+        async function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        async function runSimulation() {
+            const startBtn = document.getElementById('startDemo');
+            startBtn.disabled = true;
+            startBtn.textContent = '🔄 Running Simulation...';
+
+            const resultBox = document.getElementById('resultBox');
+            resultBox.classList.remove('show');
+            document.getElementById('logOutput').innerHTML = '';
+
+            // Get user selections
+            const condition = document.getElementById('weatherCondition').value;
+            const rarity = document.getElementById('rarity').value;
+            const locationKey = document.getElementById('location').value;
+            const algorithmKey = document.getElementById('algorithm').value;
+            const location = locations[locationKey];
+            const algorithmName = algorithmNames[algorithmKey];
+
+            const eventId = `evt_${Date.now()}`;
+            const capturePrice = 15; // XTZ
+
+            // Generate weather data based on condition
+            const weatherData = {
+                temperature: Math.floor(Math.random() * 40 - 10),
+                humidity: Math.floor(Math.random() * 100),
+                pressure: Math.floor(Math.random() * 60 + 980),
+                windSpeed: Math.floor(Math.random() * 80),
+                visibility: Math.floor(Math.random() * 20),
+                conditions: condition
+            };
+
+            const eventData = {
+                id: eventId,
+                type: condition === 'stormy' ? 'severe_thunderstorm' : `${condition}_event`,
+                timestamp: Date.now(),
+                severity: 'high',
+                duration: 120
+            };
+
+            // Step 1: Weather Detection
+            setStepStatus('step1', 'active');
+            addLog('🌦️ Weather event detected!');
+            updateStepContent('step1', `
+                <strong>Event Detected!</strong><br>
+                Location: ${location.city}, ${location.country}<br>
+                Condition: ${condition.charAt(0).toUpperCase() + condition.slice(1)}<br>
+                Temperature: ${weatherData.temperature}°C<br>
+                Wind Speed: ${weatherData.windSpeed} km/h<br>
+                Rarity: ${rarity.toUpperCase()}
+            `);
+            await sleep(2000);
+            setStepStatus('step1', 'completed');
+
+            // Step 2: Guild Creation
+            setStepStatus('step2', 'active');
+            addLog('🏛️ Creating guild...');
+
+            try {
+                const guildResult = await apiCall('guild', '/api/guilds/create', 'POST', {
+                    name: 'Elite Storm Chasers',
+                    description: 'Professional weather hunters',
+                    founder: 'tz1DemoUser123ABC',
+                    algorithms: [algorithmKey]
+                });
+
+                if (guildResult.success) {
+                    currentGuildId = guildResult.data.id;
+                    addLog(`✅ Guild created: ${guildResult.data.name}`);
+
+                    // Rent algorithm
+                    const rentalResult = await apiCall('guild', `/api/guilds/${currentGuildId}/rent-algorithm`, 'POST', {
+                        algorithmId: algorithmKey,
+                        txHash: `op${Date.now()}`
+                    });
+
+                    if (rentalResult.success) {
+                        addLog(`✅ Rented ${algorithmName} algorithm`);
+                        updateStepContent('step2', `
+                            <strong>Guild Created!</strong><br>
+                            Name: Elite Storm Chasers<br>
+                            Algorithm: ${algorithmName}<br>
+                            Monthly Cost: ${rentalResult.data.algorithm.monthlyPrice} XTZ<br>
+                            Accuracy: ${rentalResult.data.algorithm.accuracy}%
+                        `);
+                        setStepStatus('step2', 'completed');
+                    }
+                }
+            } catch (error) {
+                addLog(`❌ Guild error: ${error.message}`);
+                setStepStatus('step2', 'error');
+            }
+
+            await sleep(2000);
+
+            // Step 3: AI Art Generation
+            setStepStatus('step3', 'active');
+            addLog('🎨 Generating AI art...');
+
+            try {
+                const artResult = await apiCall('nft', '/api/art/generate', 'POST', {
+                    weatherData,
+                    eventData,
+                    location,
+                    rarity
+                });
+
+                if (artResult.success) {
+                    addLog(`✅ Art generated: ${(artResult.data.size / 1024).toFixed(2)} KB`);
+                    updateStepContent('step3', `
+                        <strong>AI Art Generated!</strong><br>
+                        Format: ${artResult.data.format}<br>
+                        Size: ${(artResult.data.size / 1024).toFixed(2)} KB<br>
+                        Effects: Weather-based procedural generation<br>
+                        <div class="step-data">Art preview available (base64)</div>
+                    `);
+                    setStepStatus('step3', 'completed');
+                }
+            } catch (error) {
+                addLog(`❌ Art generation error: ${error.message}`);
+                updateStepContent('step3', `Error: ${error.message}`);
+                setStepStatus('step3', 'error');
+            }
+
+            await sleep(2000);
+
+            // Step 4: NFT Creation
+            setStepStatus('step4', 'active');
+            addLog('📦 Creating NFT and uploading to IPFS...');
+
+            try {
+                const nftResult = await apiCall('nft', '/api/nft/create-with-art', 'POST', {
+                    eventId,
+                    weatherData,
+                    eventData,
+                    location,
+                    owner: 'tz1DemoUser123ABC',
+                    rarity,
+                    algorithm: algorithmName
+                });
+
+                if (nftResult.success) {
+                    addLog(`✅ NFT created: ${nftResult.data.eventId}`);
+                    addLog(`✅ Image: ${nftResult.data.imageHash}`);
+                    addLog(`✅ Metadata: ${nftResult.data.metadataHash}`);
+
+                    updateStepContent('step4', `
+                        <strong>NFT Created!</strong><br>
+                        Event ID: ${nftResult.data.eventId}<br>
+                        Image Hash: ${nftResult.data.imageHash.substring(0, 20)}...<br>
+                        Metadata Hash: ${nftResult.data.metadataHash.substring(0, 20)}...<br>
+                        Status: ${nftResult.data.status}<br>
+                        <div class="step-data">
+                            <a href="${nftResult.data.imageUrl}" target="_blank">View on IPFS</a>
+                        </div>
+                    `);
+
+                    // Show NFT preview if available
+                    if (nftResult.data.imagePreview) {
+                        document.getElementById('nftPreview').innerHTML = `
+                            <h4>NFT Preview:</h4>
+                            <img src="data:image/png;base64,${nftResult.data.imagePreview}"
+                                 class="nft-preview" alt="NFT Preview">
+                        `;
+                    }
+
+                    setStepStatus('step4', 'completed');
+                }
+            } catch (error) {
+                addLog(`⚠️ NFT creation: ${error.message} (IPFS may need configuration)`);
+                updateStepContent('step4', `Note: ${error.message}<br>Configure Pinata API keys in .env`);
+                setStepStatus('step4', 'error');
+            }
+
+            await sleep(2000);
+
+            // Step 5: Revenue Distribution
+            setStepStatus('step5', 'active');
+            addLog('💰 Distributing revenue...');
+
+            if (currentGuildId) {
+                try {
+                    const revenueResult = await apiCall('guild', '/api/guilds/capture-event', 'POST', {
+                        guildId: currentGuildId,
+                        userAddress: 'tz1DemoUser123ABC',
+                        algorithmId: algorithmKey,
+                        eventId: eventId,
+                        capturePrice: capturePrice
+                    });
+
+                    if (revenueResult.success) {
+                        const guildShare = revenueResult.data.guildShare;
+                        const userShare = revenueResult.data.userShare;
+
+                        addLog(`✅ Revenue distributed: ${guildShare} XTZ to guild, ${userShare} XTZ to user`);
+                        updateStepContent('step5', `
+                            <strong>Revenue Distributed!</strong><br>
+                            Total Price: ${capturePrice} XTZ<br>
+                            Guild Share (15%): ${guildShare.toFixed(2)} XTZ<br>
+                            User Share (85%): ${userShare.toFixed(2)} XTZ<br>
+                            <div class="step-data">
+                                Guild Total Revenue: ${revenueResult.data.totalGuildRevenue.toFixed(2)} XTZ<br>
+                                User Total Captures: ${revenueResult.data.memberCaptures}
+                            </div>
+                        `);
+
+                        // Update stats
+                        document.getElementById('statRevenue').textContent = userShare.toFixed(2);
+                        document.getElementById('statGuild').textContent = guildShare.toFixed(2);
+                        document.getElementById('statRarity').textContent = rarity.toUpperCase();
+                        document.getElementById('statAlgorithm').textContent = algorithmName;
+
+                        setStepStatus('step5', 'completed');
+                    }
+                } catch (error) {
+                    addLog(`❌ Revenue error: ${error.message}`);
+                    setStepStatus('step5', 'error');
+                }
+            }
+
+            // Show results
+            await sleep(1000);
+            resultBox.classList.add('show');
+            addLog('🎉 Simulation complete!');
+
+            startBtn.disabled = false;
+            startBtn.textContent = '🔄 Run Again';
+        }
+
+        document.getElementById('startDemo').addEventListener('click', runSimulation);
+    </script>
+</body>
+</html>
