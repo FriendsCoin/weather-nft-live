@@ -1,0 +1,170 @@
+# THE LISTENER - Configuration Template
+# Copy this file to config.yaml and fill in your values
+# NEVER commit config.yaml (contains API keys)
+
+# ============================================================
+# API KEYS
+# ============================================================
+anthropic:
+  api_key: "your-claude-api-key-here"  # Get from: https://console.anthropic.com/
+  model: "claude-3-5-sonnet-20241022"  # Recommended for poetic language
+  max_tokens: 500
+
+replicate:
+  api_key: "your-replicate-api-key-here"  # Get from: https://replicate.com/account
+  model: "stability-ai/sdxl:latest"       # Stable Diffusion XL
+
+# ============================================================
+# EEG HARDWARE
+# ============================================================
+muse:
+  device_name: "Muse-S"           # Your Muse S headband name
+  channels: ["TP9", "AF7", "AF8", "TP10"]  # 4 EEG channels
+  sampling_rate: 256              # Hz
+  bluetooth_timeout: 30           # seconds
+
+# ============================================================
+# SIGNAL PROCESSING
+# ============================================================
+preprocessing:
+  bandpass_low: 0.5               # Hz - high-pass cutoff
+  bandpass_high: 50.0             # Hz - low-pass cutoff
+  notch_freq: 60                  # Hz - powerline noise (50 for EU, 60 for US)
+
+  # Artifact removal
+  remove_eye_blinks: true
+  ica_components: 4               # Independent Component Analysis
+
+  # Normalization
+  normalize: "z-score"            # Options: "z-score", "min-max", "robust"
+
+# ============================================================
+# FEATURE EXTRACTION
+# ============================================================
+features:
+  window_size: 4.0                # seconds - sliding window
+  window_overlap: 0.5             # 50% overlap
+
+  # Frequency bands (Hz)
+  bands:
+    delta: [0.5, 4.0]             # Deep sleep
+    theta: [4.0, 8.0]             # Meditation, drowsiness
+    alpha: [8.0, 13.0]            # Relaxation, eyes closed
+    beta: [13.0, 30.0]            # Active thinking
+    gamma: [30.0, 50.0]           # Concentration
+
+  # Additional features
+  compute_asymmetry: true         # Left vs right hemisphere
+  compute_connectivity: true      # Channel correlations
+  compute_entropy: true           # Signal complexity
+
+# ============================================================
+# VAE MODEL ARCHITECTURE
+# ============================================================
+model:
+  # Latent space
+  latent_dim: 32                  # Compressed representation size
+
+  # Architecture
+  encoder_layers: [128, 64, 32]   # Hidden layer sizes
+  decoder_layers: [32, 64, 128]   # Mirror of encoder
+
+  # Activation & regularization
+  activation: "relu"
+  dropout: 0.2
+  batch_norm: true
+
+  # VAE-specific
+  beta: 1.0                       # KL divergence weight (β-VAE)
+
+# ============================================================
+# TRAINING
+# ============================================================
+training:
+  # Data split
+  train_ratio: 0.8                # 80% train, 20% validation
+
+  # Hyperparameters
+  batch_size: 32
+  learning_rate: 0.001
+  num_epochs: 100
+
+  # Optimization
+  optimizer: "adam"
+  scheduler: "reduce_on_plateau"
+  patience: 10                    # Early stopping patience
+
+  # Checkpointing
+  save_every_n_epochs: 10         # Save checkpoint frequency
+  checkpoint_dir: "data/checkpoints"
+
+  # Device
+  device: "cuda"                  # Options: "cuda", "cpu", "mps" (Mac M1/M2)
+
+# ============================================================
+# INTERPRETATION (LLM)
+# ============================================================
+interpretation:
+  # Prompt engineering
+  system_prompt: |
+    You are interpreting an AI companion's experience of witnessing meditation.
+    Generate short poetic descriptions (2-3 sentences) of what the AI might have
+    "witnessed" or "felt" during this meditation session.
+
+    Focus on qualities like: rhythm, transitions, depth, stillness, movement.
+    Avoid clinical language. Use contemplative, evocative words.
+    Think phenomenologically - describe the texture of experience, not measurements.
+
+  # Sampling
+  temperature: 0.8                # Higher = more creative
+  samples_per_session: 3          # Generate multiple interpretations
+
+# ============================================================
+# IMAGE GENERATION
+# ============================================================
+image_generation:
+  # Stable Diffusion parameters
+  num_inference_steps: 50         # Quality vs speed tradeoff
+  guidance_scale: 7.5             # How closely to follow prompt
+
+  # Style modifiers
+  base_style: "contemplative abstract art, minimal, ethereal"
+  negative_prompt: "text, words, letters, numbers, faces, recognizable objects"
+
+  # Output
+  width: 768
+  height: 768
+  output_format: "png"
+  output_dir: "data/outputs/images"
+
+# ============================================================
+# VISUALIZATION
+# ============================================================
+visualization:
+  # Latent space
+  umap_n_neighbors: 15
+  umap_min_dist: 0.1
+
+  # Plots
+  dpi: 300                        # High resolution
+  style: "seaborn-v0_8-darkgrid"
+
+  # Colors (for session evolution)
+  colormap: "viridis"             # Options: viridis, plasma, inferno, magma
+
+# ============================================================
+# PROJECT SETTINGS
+# ============================================================
+project:
+  name: "THE LISTENER"
+  practitioner: "Your Name"       # Single-subject training
+  start_date: "2026-01-01"
+  target_sessions: 60             # Minimum for Phase 2
+
+  # Paths
+  data_dir: "data"
+  output_dir: "data/outputs"
+
+  # Logging
+  log_level: "INFO"               # DEBUG, INFO, WARNING, ERROR
+  log_file: "logs/listener.log"
