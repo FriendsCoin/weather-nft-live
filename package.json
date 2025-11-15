@@ -2,12 +2,20 @@
   "name": "weather-nft-live",
   "version": "2.0.0",
   "description": "Revolutionary NFT project that captures unique weather moments as tradeable digital assets with real AI-powered weather prediction using PyTorch and SD environment.",
-  "main": "simple-frontend-server.js",
+  "main": "src/frontend/simple-frontend-server.js",
   "scripts": {
-    "start": "node simple-frontend-server.js",
+    "start": "node src/frontend/simple-frontend-server.js",
     "build": "echo 'Build completed'",
-    "dev": "./restart-all.sh",
-    "test": "node simple-test-server.js"
+    "dev": "./scripts/restart-all.sh",
+    "test": "node src/backend/simple-test-server.js",
+    "backend": "node src/backend/simple-server.js",
+    "admin": "node src/backend/admin-backend.js",
+    "blockchain": "node src/backend/blockchain-service.js",
+    "nft": "node src/backend/nft-service.js",
+    "guild": "node src/backend/guild-service.js",
+    "demo": "node demo-user-experience.js",
+    "ai:mock": "python3 src/backend/simple-sd-ai-mock.py",
+    "ai:real": "python3 src/backend/sd-pytorch-integration.py"
   },
   "keywords": [
     "NFT",
@@ -25,12 +33,16 @@
     "@taquito/taquito": "^22.0.0",
     "@tensorflow/tfjs-node": "^4.10.0",
     "axios": "^1.10.0",
+    "canvas": "^2.11.2",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^4.18.2",
+    "form-data": "^4.0.0",
     "http-proxy-middleware": "^3.0.5",
+    "ipfs-http-client": "^60.0.1",
     "mongodb": "^6.17.0",
     "mongoose": "^8.16.0",
+    "multer": "^1.4.5-lts.1",
     "node-fetch": "^2.7.0"
   },
   "engines": {
