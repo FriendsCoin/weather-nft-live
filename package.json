@@ -16,6 +16,7 @@
     "analytics": "node src/backend/analytics-service.js",
     "websocket": "node src/backend/websocket-service.js",
     "weather": "node src/backend/weather-api-service.js",
+    "marketplace": "node src/backend/marketplace-service.js",
     "demo": "node demo-user-experience.js",
     "db:init": "node src/backend/db-manager.js init",
     "db:seed": "node src/backend/db-manager.js seed",
