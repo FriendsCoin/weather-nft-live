@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - THE LISTENER{% endblock %}
+
+{% block content %}
+<div class="grid">
+    <div class="card">
+        <h2>📊 Session Statistics</h2>
+        <div class="metric">
+            <div class="metric-label">Total Sessions</div>
+            <div class="metric-value" id="total-sessions">-</div>
+        </div>
+        <div class="metric">
+            <div class="metric-label">Total Practice Time</div>
+            <div class="metric-value" id="total-time">-</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>🎯 Quick Actions</h2>
+        <div style="display: flex; flex-direction: column; gap: 15px;">
+            <a href="/realtime" class="btn">Start Real-time Session</a>
+            <a href="/history" class="btn btn-secondary">View Session History</a>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>📈 Recent Sessions</h2>
+    <div id="recent-sessions">
+        <p style="color: #999; text-align: center; padding: 40px;">Loading sessions...</p>
+    </div>
+</div>
+
+<style>
+.session-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.session-item {
+    padding: 15px;
+    background: #f5f7fa;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.3s;
+}
+
+.session-item:hover {
+    background: #e8ecf1;
+    transform: translateX(5px);
+}
+
+.session-info {
+    flex-grow: 1;
+}
+
+.session-name {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.session-meta {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.session-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-small {
+    padding: 8px 16px;
+    font-size: 0.85rem;
+}
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Load dashboard statistics
+    async function loadStats() {
+        try {
+            const response = await fetch('/api/stats');
+            const stats = await response.json();
+
+            document.getElementById('total-sessions').textContent = stats.total_sessions;
+
+            const hours = Math.floor(stats.total_duration / 3600);
+            const minutes = Math.floor((stats.total_duration % 3600) / 60);
+            document.getElementById('total-time').textContent = `${hours}h ${minutes}m`;
+
+        } catch (error) {
+            console.error('Error loading stats:', error);
+        }
+    }
+
+    // Load recent sessions
+    async function loadRecentSessions() {
+        try {
+            const response = await fetch('/api/sessions');
+            const sessions = await response.json();
+
+            const container = document.getElementById('recent-sessions');
+
+            if (sessions.length === 0) {
+                container.innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">No sessions yet. Start your first session!</p>';
+                return;
+            }
+
+            // Show last 5 sessions
+            const recentSessions = sessions.slice(-5).reverse();
+
+            container.innerHTML = '<div class="session-list">' +
+                recentSessions.map(session => `
+                    <div class="session-item">
+                        <div class="session-info">
+                            <div class="session-name">${session.id}</div>
+                            <div class="session-meta">
+                                ${session.date} • ${Math.floor(session.duration / 60)} min ${Math.floor(session.duration % 60)} sec
+                            </div>
+                        </div>
+                        <div class="session-actions">
+                            <button class="btn btn-small" onclick="viewSession('${session.id}')">View</button>
+                        </div>
+                    </div>
+                `).join('') +
+                '</div>';
+
+        } catch (error) {
+            console.error('Error loading sessions:', error);
+            document.getElementById('recent-sessions').innerHTML =
+                '<p style="color: #f44; text-align: center; padding: 40px;">Error loading sessions</p>';
+        }
+    }
+
+    function viewSession(sessionId) {
+        window.location.href = `/history#${sessionId}`;
+    }
+
+    // Load data on page load
+    window.addEventListener('DOMContentLoaded', () => {
+        loadStats();
+        loadRecentSessions();
+    });
+</script>
+{% endblock %}

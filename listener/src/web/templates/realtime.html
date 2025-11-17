@@ -1,0 +1,567 @@
+{% extends "base.html" %}
+
+{% block title %}Real-time Neurofeedback - THE LISTENER{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .realtime-container {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 20px;
+    }
+
+    .state-indicator {
+        text-align: center;
+        padding: 40px;
+        border-radius: 16px;
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 20px;
+        transition: all 0.3s;
+    }
+
+    .state-alpha-success {
+        background: linear-gradient(135deg, #6dd5ed 0%, #2193b0 100%);
+        color: white;
+    }
+
+    .state-alpha-fail {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+    }
+
+    .state-beta-success {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+    }
+
+    .state-beta-fail {
+        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        color: white;
+    }
+
+    .state-combined {
+        background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        color: #333;
+    }
+
+    .state-drowsy {
+        background: linear-gradient(135deg, #fddb92 0%, #d1fdff 100%);
+        color: #333;
+    }
+
+    .state-baseline {
+        background: linear-gradient(135deg, #e0e0e0 0%, #c0c0c0 100%);
+        color: #333;
+    }
+
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin-bottom: 20px;
+    }
+
+    .controls {
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+        margin-bottom: 20px;
+    }
+
+    .power-bar {
+        margin: 15px 0;
+    }
+
+    .power-label {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 5px;
+        font-weight: 600;
+    }
+
+    .bar-container {
+        width: 100%;
+        height: 30px;
+        background: #e0e0e0;
+        border-radius: 15px;
+        overflow: hidden;
+    }
+
+    .bar-fill {
+        height: 100%;
+        transition: width 0.3s;
+        border-radius: 15px;
+    }
+
+    .bar-alpha { background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); }
+    .bar-beta { background: linear-gradient(90deg, #f093fb 0%, #f5576c 100%); }
+    .bar-theta { background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%); }
+    .bar-delta { background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%); }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        margin-top: 20px;
+    }
+
+    .stat-box {
+        background: #f5f7fa;
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+    }
+
+    .stat-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #667eea;
+    }
+
+    .stat-label {
+        font-size: 0.85rem;
+        color: #666;
+        margin-top: 5px;
+    }
+
+    .status-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+    }
+
+    .status-connected {
+        background: #43e97b;
+        box-shadow: 0 0 10px #43e97b;
+    }
+
+    .status-disconnected {
+        background: #f5576c;
+    }
+
+    @media (max-width: 1024px) {
+        .realtime-container {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="controls">
+        <button id="start-btn" class="btn" onclick="startSession()">Start Session</button>
+        <button id="stop-btn" class="btn btn-secondary" onclick="stopSession()" style="display: none;">Stop Session</button>
+        <div style="margin-left: auto; display: flex; align-items: center;">
+            <span class="status-indicator" id="status-indicator"></span>
+            <span id="status-text">Disconnected</span>
+        </div>
+    </div>
+</div>
+
+<div class="realtime-container">
+    <div>
+        <div class="card">
+            <div class="state-indicator state-baseline" id="state-display">
+                <div id="state-name">BASELINE</div>
+                <div style="font-size: 1rem; margin-top: 10px;" id="state-message">Ready to begin</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📊 EEG Band Powers</h2>
+            <div class="chart-container">
+                <canvas id="bandpowers-chart"></canvas>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📈 Meditation Depth</h2>
+            <div class="chart-container">
+                <canvas id="depth-chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <div class="card">
+            <h2>⚡ Current Powers</h2>
+
+            <div class="power-bar">
+                <div class="power-label">
+                    <span>Alpha (Relaxation)</span>
+                    <span id="alpha-value">0.00</span>
+                </div>
+                <div class="bar-container">
+                    <div class="bar-fill bar-alpha" id="alpha-bar" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div class="power-bar">
+                <div class="power-label">
+                    <span>Beta (Focus)</span>
+                    <span id="beta-value">0.00</span>
+                </div>
+                <div class="bar-container">
+                    <div class="bar-fill bar-beta" id="beta-bar" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div class="power-bar">
+                <div class="power-label">
+                    <span>Theta (Deep)</span>
+                    <span id="theta-value">0.00</span>
+                </div>
+                <div class="bar-container">
+                    <div class="bar-fill bar-theta" id="theta-bar" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div class="power-bar">
+                <div class="power-label">
+                    <span>Delta (Drowsy)</span>
+                    <span id="delta-value">0.00</span>
+                </div>
+                <div class="bar-container">
+                    <div class="bar-fill bar-delta" id="delta-bar" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📊 Session Stats</h2>
+
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-value" id="stat-alpha-success">0</div>
+                    <div class="stat-label">Alpha Success</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="stat-beta-success">0</div>
+                    <div class="stat-label">Beta Success</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="stat-combined">0</div>
+                    <div class="stat-label">Perfect States</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="stat-duration">0:00</div>
+                    <div class="stat-label">Duration</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // WebSocket connection
+    let socket = null;
+    let isConnected = false;
+    let sessionStartTime = null;
+    let sessionStats = {
+        alphaSuccess: 0,
+        betaSuccess: 0,
+        combined: 0
+    };
+
+    // Charts
+    let bandpowersChart = null;
+    let depthChart = null;
+
+    // Data buffers
+    const MAX_DATA_POINTS = 100;
+    let timeData = [];
+    let alphaData = [];
+    let betaData = [];
+    let thetaData = [];
+    let deltaData = [];
+    let depthData = [];
+
+    // Initialize charts
+    function initCharts() {
+        const ctx1 = document.getElementById('bandpowers-chart').getContext('2d');
+        bandpowersChart = new Chart(ctx1, {
+            type: 'line',
+            data: {
+                labels: timeData,
+                datasets: [
+                    {
+                        label: 'Alpha',
+                        data: alphaData,
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Beta',
+                        data: betaData,
+                        borderColor: '#f5576c',
+                        backgroundColor: 'rgba(245, 87, 108, 0.1)',
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Theta',
+                        data: thetaData,
+                        borderColor: '#00f2fe',
+                        backgroundColor: 'rgba(0, 242, 254, 0.1)',
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Delta',
+                        data: deltaData,
+                        borderColor: '#38f9d7',
+                        backgroundColor: 'rgba(56, 249, 215, 0.1)',
+                        tension: 0.4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 0.5
+                    }
+                },
+                animation: {
+                    duration: 0
+                }
+            }
+        });
+
+        const ctx2 = document.getElementById('depth-chart').getContext('2d');
+        depthChart = new Chart(ctx2, {
+            type: 'line',
+            data: {
+                labels: timeData,
+                datasets: [{
+                    label: 'Meditation Depth',
+                    data: depthData,
+                    borderColor: '#764ba2',
+                    backgroundColor: 'rgba(118, 75, 162, 0.2)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                },
+                animation: {
+                    duration: 0
+                }
+            }
+        });
+    }
+
+    // Connect to WebSocket
+    function connectWebSocket() {
+        socket = io('/realtime');
+
+        socket.on('connect', () => {
+            console.log('Connected to server');
+            isConnected = true;
+            updateConnectionStatus(true);
+        });
+
+        socket.on('disconnect', () => {
+            console.log('Disconnected from server');
+            isConnected = false;
+            updateConnectionStatus(false);
+        });
+
+        socket.on('neurofeedback_update', (data) => {
+            updateRealtime(data);
+        });
+
+        socket.on('session_started', (data) => {
+            console.log('Session started:', data);
+            sessionStartTime = Date.now();
+            resetSessionStats();
+        });
+
+        socket.on('session_stopped', (data) => {
+            console.log('Session stopped:', data);
+            sessionStartTime = null;
+        });
+    }
+
+    function updateConnectionStatus(connected) {
+        const indicator = document.getElementById('status-indicator');
+        const text = document.getElementById('status-text');
+
+        if (connected) {
+            indicator.className = 'status-indicator status-connected';
+            text.textContent = 'Connected';
+        } else {
+            indicator.className = 'status-indicator status-disconnected';
+            text.textContent = 'Disconnected';
+        }
+    }
+
+    function startSession() {
+        if (!isConnected) {
+            alert('Not connected to server');
+            return;
+        }
+
+        socket.emit('start_session', {});
+
+        document.getElementById('start-btn').style.display = 'none';
+        document.getElementById('stop-btn').style.display = 'inline-block';
+    }
+
+    function stopSession() {
+        socket.emit('stop_session');
+
+        document.getElementById('start-btn').style.display = 'inline-block';
+        document.getElementById('stop-btn').style.display = 'none';
+    }
+
+    function resetSessionStats() {
+        sessionStats = {
+            alphaSuccess: 0,
+            betaSuccess: 0,
+            combined: 0
+        };
+
+        // Clear data buffers
+        timeData = [];
+        alphaData = [];
+        betaData = [];
+        thetaData = [];
+        deltaData = [];
+        depthData = [];
+
+        updateStatsDisplay();
+    }
+
+    function updateRealtime(data) {
+        // Update state display
+        updateStateDisplay(data.state, data.message);
+
+        // Update power bars
+        updatePowerBars(data);
+
+        // Update charts
+        updateCharts(data);
+
+        // Update stats
+        updateStats(data.state);
+    }
+
+    function updateStateDisplay(state, message) {
+        const display = document.getElementById('state-display');
+        const stateName = document.getElementById('state-name');
+        const stateMessage = document.getElementById('state-message');
+
+        stateName.textContent = state.toUpperCase();
+        stateMessage.textContent = message;
+
+        // Remove all state classes
+        display.className = 'state-indicator';
+
+        // Add appropriate class
+        const stateMap = {
+            'alpha+': 'state-alpha-success',
+            'alpha-': 'state-alpha-fail',
+            'beta+': 'state-beta-success',
+            'beta-': 'state-beta-fail',
+            'a+b+': 'state-combined',
+            'drowsy': 'state-drowsy',
+            'baseline': 'state-baseline'
+        };
+
+        display.classList.add(stateMap[state] || 'state-baseline');
+    }
+
+    function updatePowerBars(data) {
+        const maxPower = 0.5;  // Maximum expected power
+
+        updateBar('alpha', data.alpha, maxPower);
+        updateBar('beta', data.beta, maxPower);
+        updateBar('theta', data.theta, maxPower);
+        updateBar('delta', data.delta, maxPower);
+    }
+
+    function updateBar(name, value, maxValue) {
+        const bar = document.getElementById(`${name}-bar`);
+        const valueDisplay = document.getElementById(`${name}-value`);
+
+        const percentage = Math.min((value / maxValue) * 100, 100);
+        bar.style.width = `${percentage}%`;
+        valueDisplay.textContent = value.toFixed(3);
+    }
+
+    function updateCharts(data) {
+        // Add new data point
+        const timestamp = data.timestamp.toFixed(1);
+
+        timeData.push(timestamp);
+        alphaData.push(data.alpha);
+        betaData.push(data.beta);
+        thetaData.push(data.theta);
+        deltaData.push(data.delta);
+        depthData.push(data.depth);
+
+        // Keep only last MAX_DATA_POINTS
+        if (timeData.length > MAX_DATA_POINTS) {
+            timeData.shift();
+            alphaData.shift();
+            betaData.shift();
+            thetaData.shift();
+            deltaData.shift();
+            depthData.shift();
+        }
+
+        // Update charts
+        bandpowersChart.update();
+        depthChart.update();
+    }
+
+    function updateStats(state) {
+        if (state === 'alpha+') sessionStats.alphaSuccess++;
+        if (state === 'beta+') sessionStats.betaSuccess++;
+        if (state === 'a+b+') sessionStats.combined++;
+
+        updateStatsDisplay();
+    }
+
+    function updateStatsDisplay() {
+        document.getElementById('stat-alpha-success').textContent = sessionStats.alphaSuccess;
+        document.getElementById('stat-beta-success').textContent = sessionStats.betaSuccess;
+        document.getElementById('stat-combined').textContent = sessionStats.combined;
+
+        if (sessionStartTime) {
+            const duration = Math.floor((Date.now() - sessionStartTime) / 1000);
+            const minutes = Math.floor(duration / 60);
+            const seconds = duration % 60;
+            document.getElementById('stat-duration').textContent =
+                `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+    }
+
+    // Update duration every second
+    setInterval(() => {
+        if (sessionStartTime) {
+            updateStatsDisplay();
+        }
+    }, 1000);
+
+    // Initialize on page load
+    window.addEventListener('DOMContentLoaded', () => {
+        initCharts();
+        connectWebSocket();
+    });
+</script>
+{% endblock %}
