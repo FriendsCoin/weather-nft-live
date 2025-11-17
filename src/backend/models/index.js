@@ -509,6 +509,263 @@ const analyticsSchema = new mongoose.Schema({
 // Compound indexes
 analyticsSchema.index({ type: 1, period: 1, date: -1 });
 
+// Listing Schema (for marketplace listings)
+const listingSchema = new mongoose.Schema({
+  listingId: {
+    type: String,
+    required: true,
+    unique: true,
+    index: true
+  },
+  nftId: {
+    type: String,
+    required: true,
+    index: true
+  },
+  seller: {
+    type: String,
+    required: true,
+    index: true
+  },
+  price: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  currency: {
+    type: String,
+    default: 'XTZ'
+  },
+  auctionMode: {
+    type: Boolean,
+    default: false
+  },
+  minimumBid: {
+    type: Number,
+    min: 0,
+    default: null
+  },
+  buyNowPrice: {
+    type: Number,
+    min: 0,
+    default: null
+  },
+  currentBid: {
+    type: Number,
+    min: 0,
+    default: 0
+  },
+  highestBidder: {
+    type: String,
+    default: null
+  },
+  status: {
+    type: String,
+    enum: ['active', 'sold', 'cancelled', 'expired'],
+    default: 'active',
+    index: true
+  },
+  views: {
+    type: Number,
+    default: 0
+  },
+  favorites: {
+    type: Number,
+    default: 0
+  },
+  soldTo: {
+    type: String,
+    default: null
+  },
+  soldAt: {
+    type: Date,
+    default: null
+  },
+  soldPrice: {
+    type: Number,
+    default: null
+  },
+  expiresAt: {
+    type: Date,
+    required: true,
+    index: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+    index: true
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
+  }
+}, {
+  timestamps: true
+});
+
+// Indexes
+listingSchema.index({ seller: 1, status: 1 });
+listingSchema.index({ price: 1, status: 1 });
+listingSchema.index({ createdAt: -1, status: 1 });
+listingSchema.index({ expiresAt: 1, status: 1 });
+
+// Offer Schema (for bids and offers)
+const offerSchema = new mongoose.Schema({
+  offerId: {
+    type: String,
+    required: true,
+    unique: true,
+    index: true
+  },
+  listingId: {
+    type: String,
+    index: true,
+    default: null
+  },
+  nftId: {
+    type: String,
+    required: true,
+    index: true
+  },
+  offerer: {
+    type: String,
+    required: true,
+    index: true
+  },
+  amount: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  currency: {
+    type: String,
+    default: 'XTZ'
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'accepted', 'rejected', 'cancelled', 'expired'],
+    default: 'pending',
+    index: true
+  },
+  acceptedAt: {
+    type: Date,
+    default: null
+  },
+  rejectedAt: {
+    type: Date,
+    default: null
+  },
+  expiresAt: {
+    type: Date,
+    required: true,
+    index: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+    index: true
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
+  }
+}, {
+  timestamps: true
+});
+
+// Indexes
+offerSchema.index({ nftId: 1, status: 1 });
+offerSchema.index({ offerer: 1, status: 1 });
+offerSchema.index({ amount: -1 });
+offerSchema.index({ expiresAt: 1, status: 1 });
+
+// Marketplace Transaction Schema
+const marketplaceTransactionSchema = new mongoose.Schema({
+  transactionId: {
+    type: String,
+    required: true,
+    unique: true,
+    index: true
+  },
+  type: {
+    type: String,
+    enum: ['direct_sale', 'offer_accepted', 'auction_win'],
+    required: true,
+    index: true
+  },
+  listingId: {
+    type: String,
+    index: true
+  },
+  offerId: {
+    type: String,
+    index: true,
+    default: null
+  },
+  nftId: {
+    type: String,
+    required: true,
+    index: true
+  },
+  seller: {
+    type: String,
+    required: true,
+    index: true
+  },
+  buyer: {
+    type: String,
+    required: true,
+    index: true
+  },
+  price: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  currency: {
+    type: String,
+    default: 'XTZ'
+  },
+  paymentMethod: {
+    type: String,
+    default: 'wallet'
+  },
+  platformFee: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  sellerReceives: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'completed', 'failed', 'refunded'],
+    default: 'completed',
+    index: true
+  },
+  txHash: {
+    type: String,
+    default: null,
+    sparse: true
+  },
+  timestamp: {
+    type: Date,
+    default: Date.now,
+    index: true
+  }
+}, {
+  timestamps: false
+});
+
+// Indexes
+marketplaceTransactionSchema.index({ seller: 1, timestamp: -1 });
+marketplaceTransactionSchema.index({ buyer: 1, timestamp: -1 });
+marketplaceTransactionSchema.index({ nftId: 1, timestamp: -1 });
+marketplaceTransactionSchema.index({ type: 1, timestamp: -1 });
+
 // Create models
 const Guild = mongoose.model('Guild', guildSchema);
 const NFT = mongoose.model('NFT', nftSchema);
@@ -518,6 +775,9 @@ const Transaction = mongoose.model('Transaction', transactionSchema);
 const AlgorithmRental = mongoose.model('AlgorithmRental', algorithmRentalSchema);
 const RevenueShare = mongoose.model('RevenueShare', revenueShareSchema);
 const Analytics = mongoose.model('Analytics', analyticsSchema);
+const Listing = mongoose.model('Listing', listingSchema);
+const Offer = mongoose.model('Offer', offerSchema);
+const MarketplaceTransaction = mongoose.model('MarketplaceTransaction', marketplaceTransactionSchema);
 
 module.exports = {
   Guild,
@@ -527,5 +787,8 @@ module.exports = {
   Transaction,
   AlgorithmRental,
   RevenueShare,
-  Analytics
+  Analytics,
+  Listing,
+  Offer,
+  MarketplaceTransaction
 };
