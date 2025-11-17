@@ -16,6 +16,10 @@
     "analytics": "node src/backend/analytics-service.js",
     "websocket": "node src/backend/websocket-service.js",
     "demo": "node demo-user-experience.js",
+    "db:init": "node src/backend/db-manager.js init",
+    "db:seed": "node src/backend/db-manager.js seed",
+    "db:health": "node src/backend/db-manager.js health",
+    "db:stats": "node src/backend/db-manager.js stats",
     "ai:mock": "python3 src/backend/simple-sd-ai-mock.py",
     "ai:real": "python3 src/backend/sd-pytorch-integration.py"
   },
