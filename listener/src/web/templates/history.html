@@ -1,0 +1,357 @@
+{% extends "base.html" %}
+
+{% block title %}Session History - THE LISTENER{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .session-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+    }
+
+    .session-card {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        border-radius: 12px;
+        padding: 20px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .session-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+    }
+
+    .session-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 10px;
+    }
+
+    .session-detail {
+        display: flex;
+        justify-content: space-between;
+        margin: 8px 0;
+        font-size: 0.9rem;
+        color: #666;
+    }
+
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 1000;
+        overflow-y: auto;
+    }
+
+    .modal-content {
+        background: white;
+        max-width: 1200px;
+        margin: 50px auto;
+        border-radius: 16px;
+        padding: 40px;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+
+    .close-btn {
+        font-size: 2rem;
+        cursor: pointer;
+        color: #999;
+        border: none;
+        background: none;
+    }
+
+    .close-btn:hover {
+        color: #333;
+    }
+
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin: 30px 0;
+    }
+
+    .metric-card {
+        background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+        padding: 20px;
+        border-radius: 12px;
+        text-align: center;
+    }
+
+    .chart-section {
+        margin: 30px 0;
+    }
+
+    .chart-wrapper {
+        height: 400px;
+        margin: 20px 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>📚 All Sessions</h2>
+
+    <div id="sessions-container">
+        <p style="color: #999; text-align: center; padding: 40px;">Loading sessions...</p>
+    </div>
+</div>
+
+<!-- Session Detail Modal -->
+<div id="session-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modal-title">Session Details</h2>
+            <button class="close-btn" onclick="closeModal()">&times;</button>
+        </div>
+
+        <div id="modal-body">
+            <!-- Session details will be loaded here -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    let sessions = [];
+    let currentChart = null;
+
+    // Load all sessions
+    async function loadSessions() {
+        try {
+            const response = await fetch('/api/sessions');
+            sessions = await response.json();
+
+            displaySessions();
+        } catch (error) {
+            console.error('Error loading sessions:', error);
+            document.getElementById('sessions-container').innerHTML =
+                '<p style="color: #f44; text-align: center; padding: 40px;">Error loading sessions</p>';
+        }
+    }
+
+    function displaySessions() {
+        const container = document.getElementById('sessions-container');
+
+        if (sessions.length === 0) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 60px;">
+                    <p style="font-size: 3rem; margin-bottom: 20px;">🧘</p>
+                    <p style="color: #999; font-size: 1.2rem;">No sessions recorded yet</p>
+                    <a href="/realtime" class="btn" style="margin-top: 20px;">Start Your First Session</a>
+                </div>
+            `;
+            return;
+        }
+
+        // Sort by date (newest first)
+        sessions.sort((a, b) => b.timestamp - a.timestamp);
+
+        container.innerHTML = `
+            <div class="session-grid">
+                ${sessions.map(session => `
+                    <div class="session-card" onclick="viewSessionDetail('${session.id}')">
+                        <div class="session-title">${session.id}</div>
+                        <div class="session-detail">
+                            <span>📅 Date:</span>
+                            <span>${session.date}</span>
+                        </div>
+                        <div class="session-detail">
+                            <span>⏱ Duration:</span>
+                            <span>${formatDuration(session.duration)}</span>
+                        </div>
+                        <div class="session-detail">
+                            <span>📊 Channels:</span>
+                            <span>${session.channels}</span>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    function formatDuration(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${minutes}m ${secs}s`;
+    }
+
+    async function viewSessionDetail(sessionId) {
+        try {
+            const response = await fetch(`/api/session/${sessionId}`);
+            const data = await response.json();
+
+            if (data.error) {
+                alert('Error loading session: ' + data.error);
+                return;
+            }
+
+            displaySessionDetail(data);
+
+            // Show modal
+            document.getElementById('session-modal').style.display = 'block';
+
+        } catch (error) {
+            console.error('Error loading session detail:', error);
+            alert('Error loading session details');
+        }
+    }
+
+    function displaySessionDetail(data) {
+        document.getElementById('modal-title').textContent = `Session: ${data.id}`;
+
+        const modalBody = document.getElementById('modal-body');
+
+        // Display metadata
+        const metadata = data.metadata;
+        const metrics = data.metrics || {};
+
+        modalBody.innerHTML = `
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div style="font-size: 2rem; color: #667eea; font-weight: 700;">
+                        ${formatDuration(metadata.duration)}
+                    </div>
+                    <div style="color: #666; margin-top: 10px;">Duration</div>
+                </div>
+                <div class="metric-card">
+                    <div style="font-size: 2rem; color: #667eea; font-weight: 700;">
+                        ${metadata.channels.length}
+                    </div>
+                    <div style="color: #666; margin-top: 10px;">EEG Channels</div>
+                </div>
+                <div class="metric-card">
+                    <div style="font-size: 2rem; color: #667eea; font-weight: 700;">
+                        ${metadata.sampling_rate} Hz
+                    </div>
+                    <div style="color: #666; margin-top: 10px;">Sampling Rate</div>
+                </div>
+                <div class="metric-card">
+                    <div style="font-size: 2rem; color: #667eea; font-weight: 700;">
+                        ${metrics.depth_score ? metrics.depth_score.toFixed(1) : 'N/A'}
+                    </div>
+                    <div style="color: #666; margin-top: 10px;">Meditation Depth</div>
+                </div>
+            </div>
+
+            <div class="chart-section">
+                <h3>Band Powers Over Time</h3>
+                <div class="chart-wrapper">
+                    <canvas id="detail-chart"></canvas>
+                </div>
+            </div>
+        `;
+
+        // Draw chart
+        setTimeout(() => {
+            drawDetailChart(data.time_series);
+        }, 100);
+    }
+
+    function drawDetailChart(timeSeries) {
+        if (currentChart) {
+            currentChart.destroy();
+        }
+
+        const ctx = document.getElementById('detail-chart').getContext('2d');
+
+        currentChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: timeSeries.time,
+                datasets: [
+                    {
+                        label: 'Alpha',
+                        data: timeSeries.alpha,
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Beta',
+                        data: timeSeries.beta,
+                        borderColor: '#f5576c',
+                        backgroundColor: 'rgba(245, 87, 108, 0.1)',
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Theta',
+                        data: timeSeries.theta,
+                        borderColor: '#00f2fe',
+                        backgroundColor: 'rgba(0, 242, 254, 0.1)',
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Delta',
+                        data: timeSeries.delta,
+                        borderColor: '#38f9d7',
+                        backgroundColor: 'rgba(56, 249, 215, 0.1)',
+                        tension: 0.4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+
+    function closeModal() {
+        document.getElementById('session-modal').style.display = 'none';
+
+        if (currentChart) {
+            currentChart.destroy();
+            currentChart = null;
+        }
+    }
+
+    // Close modal on outside click
+    window.onclick = function(event) {
+        const modal = document.getElementById('session-modal');
+        if (event.target === modal) {
+            closeModal();
+        }
+    }
+
+    // Close modal on Escape key
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeModal();
+        }
+    });
+
+    // Load sessions on page load
+    window.addEventListener('DOMContentLoaded', () => {
+        loadSessions();
+
+        // Check for session ID in URL hash
+        if (window.location.hash) {
+            const sessionId = window.location.hash.substring(1);
+            setTimeout(() => {
+                viewSessionDetail(sessionId);
+            }, 500);
+        }
+    });
+</script>
+{% endblock %}
