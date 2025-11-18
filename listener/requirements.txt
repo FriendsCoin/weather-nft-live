@@ -49,6 +49,11 @@ websockets>=12.0            # WebSocket server for live neurofeedback streaming
 python-osc>=1.8.0           # OSC protocol for TouchDesigner integration (optional)
 
 # ============================================================
+# BIOFEEDBACK GAME / INTERACTIVE VISUALIZATION
+# ============================================================
+pygame>=2.5.0               # Interactive visual feedback system
+
+# ============================================================
 # WEB DASHBOARD
 # ============================================================
 fastapi>=0.108.0            # Modern web framework for REST API
