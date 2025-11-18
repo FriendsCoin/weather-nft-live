@@ -13,6 +13,8 @@ from .video_compiler import VideoCompiler
 from .data_exporter import DataExporter
 from .visualization_3d import Visualization3D
 from .logging_config import setup_logging, get_logger, LogTimer, log_function_call
+from .umap_cache import UMAPCache, cached_umap
+from .rich_cli import console, create_progress, create_table, print_header, is_rich_available
 
 # Optional: Local GPU image generation (requires diffusers)
 try:
@@ -41,4 +43,11 @@ __all__ = [
     "LogTimer",
     "log_function_call",
     "LOCAL_GPU_AVAILABLE",
+    "UMAPCache",
+    "cached_umap",
+    "console",
+    "create_progress",
+    "create_table",
+    "print_header",
+    "is_rich_available",
 ]

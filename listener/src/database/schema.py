@@ -53,9 +53,9 @@ class Session(Base):
     processed_data_path = Column(String(500))  # Path to processed .h5
 
     # Aggregated meditation metrics
-    mean_depth = Column(Float)
-    max_depth = Column(Float)
-    quality_score = Column(Float)
+    mean_depth = Column(Float, index=True)  # Indexed for filtering by depth
+    max_depth = Column(Float, index=True)   # Indexed for finding peak states
+    quality_score = Column(Float, index=True)  # Indexed for filtering by quality
 
     # Band power statistics (averaged across channels and time)
     alpha_mean = Column(Float)

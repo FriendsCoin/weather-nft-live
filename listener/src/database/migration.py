@@ -32,6 +32,16 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.database import SessionManager, Session
 from src.utils.meditation_analysis import MeditationAnalyzer
+from src.utils.rich_cli import (
+    console,
+    get_progress,
+    print_header,
+    print_success,
+    print_error,
+    print_warning,
+    create_table,
+    is_rich_available
+)
 
 
 class MigrationTool:
@@ -105,11 +115,31 @@ class MigrationTool:
                 else:
                     # Fall back to file modification time
                     recorded_at = datetime.fromtimestamp(h5_path.stat().st_mtime)
-            except:
+            except (ValueError, IndexError, OSError) as e:
+                # Failed to parse timestamp from session_id, use file modification time
+                print(f"   Warning: Could not parse timestamp from {session_id}: {e}")
                 recorded_at = datetime.fromtimestamp(h5_path.stat().st_mtime)
 
-            # Compute duration from features
-            duration_seconds = len(features_df) * 1.0  # Assuming 1 Hz sampling
+            # Compute duration from EEG data if available, otherwise from features
+            try:
+                # Try to load EEG data to get accurate duration
+                eeg_data = pd.read_hdf(h5_path, key='eeg_data')
+                # EEG data shape: (n_channels, n_samples)
+                # Muse S sampling rate: 256 Hz
+                SAMPLING_RATE = 256.0
+                n_samples = eeg_data.shape[1] if len(eeg_data.shape) > 1 else len(eeg_data)
+                duration_seconds = n_samples / SAMPLING_RATE
+                print(f"   Duration calculated from EEG data: {duration_seconds:.1f}s")
+            except (KeyError, Exception):
+                # EEG data not available, use features length
+                # Typically features are extracted from full session (one row per session)
+                # Default assumption: 600 seconds (10 minutes) per session
+                duration_seconds = 600.0  # Default 10-minute session
+                if len(features_df) > 1:
+                    # Multiple feature rows might indicate windowed extraction
+                    # This is less common, but handle it
+                    duration_seconds = len(features_df) * 10.0  # Assume 10s windows
+                print(f"   Duration estimated (no EEG data): {duration_seconds:.1f}s")
 
             # Extract band power statistics
             alpha_cols = [c for c in features_df.columns if 'alpha' in c.lower() and 'mean' in c.lower()]
@@ -210,34 +240,56 @@ class MigrationTool:
             print(f"❌ No .h5 files found in {sessions_dir}")
             return {}
 
-        print(f"\n📂 Found {len(h5_files)} session files")
-        print(f"   Directory: {sessions_dir}")
+        console.print(f"\n📂 Found {len(h5_files)} session files")
+        console.print(f"   Directory: {sessions_dir}")
         print()
 
-        # Migrate each session
+        # Migrate each session with progress bar
         migrated = 0
         skipped = 0
         failed = 0
 
-        for h5_file in h5_files:
-            result = self.migrate_session(str(h5_file), dry_run=dry_run)
+        with get_progress() as progress:
+            task = progress.add_task(
+                f"[cyan]Migrating sessions{'[yellow] (dry run)' if dry_run else ''}[/cyan]",
+                total=len(h5_files)
+            )
 
-            if result:
-                migrated += 1
-            elif result is None:
-                failed += 1
-            else:
-                skipped += 1
+            for h5_file in h5_files:
+                result = self.migrate_session(str(h5_file), dry_run=dry_run)
 
-        # Summary
+                if result:
+                    migrated += 1
+                elif result is None:
+                    failed += 1
+                else:
+                    skipped += 1
+
+                progress.update(task, advance=1)
+
+        # Summary with Rich table
         print()
-        print("=" * 60)
-        print(f"  📊 Migration {'Preview' if dry_run else 'Complete'}")
-        print("=" * 60)
-        print(f"Migrated:  {migrated}")
-        print(f"Skipped:   {skipped}")
-        print(f"Failed:    {failed}")
-        print("=" * 60)
+        print_header(f"Migration {'Preview' if dry_run else 'Complete'}")
+
+        # Create summary table
+        if is_rich_available():
+            table = create_table(
+                "Migration Results",
+                ["Status", "Count"],
+                [
+                    ["✅ Migrated", str(migrated)],
+                    ["⏭️  Skipped", str(skipped)],
+                    ["❌ Failed", str(failed)],
+                    ["📊 Total", str(len(h5_files))]
+                ]
+            )
+            console.print(table)
+        else:
+            print(f"Migrated:  {migrated}")
+            print(f"Skipped:   {skipped}")
+            print(f"Failed:    {failed}")
+            print(f"Total:     {len(h5_files)}")
+        print()
 
         if dry_run:
             print()

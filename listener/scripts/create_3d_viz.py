@@ -39,6 +39,8 @@ from datetime import datetime, timedelta
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from src.config import config
+
 from src.database import SessionManager, QueryBuilder
 from src.utils.visualization_3d import Visualization3D
 
@@ -91,7 +93,7 @@ def main():
                        help="Visual theme (default: dark)")
 
     # Database
-    parser.add_argument("--database", default="sqlite:///data/listener.db",
+    parser.add_argument("--database", default=config.database_url,
                        help="Database URL")
 
     args = parser.parse_args()
@@ -138,6 +140,12 @@ def main():
     if not sessions:
         print("❌ No sessions found in database")
         print("   Run migration first: python src/database/migration.py --sessions-dir data/sessions")
+        return
+
+    # Validate minimum session count for 3D visualizations
+    if (args.latent_space or args.journey or args.vr_export) and len(sessions) < 2:
+        print(f"❌ Need at least 2 sessions for 3D visualization (found {len(sessions)})")
+        print("   Record more meditation sessions first")
         return
 
     print(f"✅ Loaded {len(sessions)} sessions")

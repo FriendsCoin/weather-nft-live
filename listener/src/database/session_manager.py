@@ -18,6 +18,7 @@ from .schema import (
     Base, Session, MoodLog, JournalEntry, Tag,
     LatentRepresentation, Checkpoint, GeneratedOutput, User
 )
+from ..config import config as app_config
 
 
 class SessionManager:
@@ -49,15 +50,15 @@ class SessionManager:
         )
     """
 
-    def __init__(self, database_url: str = "sqlite:///data/listener.db", echo: bool = False):
+    def __init__(self, database_url: Optional[str] = None, echo: bool = False):
         """
         Initialize session manager.
 
         Args:
-            database_url: SQLAlchemy database URL
+            database_url: SQLAlchemy database URL (default: from config)
             echo: Print SQL statements (for debugging)
         """
-        self.database_url = database_url
+        self.database_url = database_url or app_config.database_url
         self.engine = create_engine(database_url, echo=echo)
         self.SessionMaker = sessionmaker(bind=self.engine)
 

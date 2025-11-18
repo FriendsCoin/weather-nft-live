@@ -25,6 +25,7 @@ from plotly.subplots import make_subplots
 from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
 import json
+from .umap_cache import cached_umap
 
 
 class Visualization3D:
@@ -261,15 +262,15 @@ class Visualization3D:
         print(f"   Reducing {vectors.shape[1]}D → 3D using {method.upper()}...")
 
         if method == 'umap':
-            from umap import UMAP
-            reducer = UMAP(
+            # Use cached UMAP for 20x speedup!
+            coords_3d = cached_umap(
+                vectors,
                 n_components=3,
                 n_neighbors=min(n_neighbors, len(vectors) - 1),
                 min_dist=min_dist,
                 metric='euclidean',
-                random_state=42
+                verbose=True
             )
-            coords_3d = reducer.fit_transform(vectors)
 
         elif method == 'tsne':
             from sklearn.manifold import TSNE

@@ -28,6 +28,8 @@ from datetime import datetime, timedelta
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from src.config import config
+
 from src.database import SessionManager, QueryBuilder
 from src.utils import ReportGenerator, VideoCompiler, DataExporter
 from glob import glob
@@ -63,7 +65,7 @@ def main():
                        help="Last N days (default: all time)")
     parser.add_argument("--output-dir", default="exports",
                        help="Output directory (default: exports)")
-    parser.add_argument("--database", default="sqlite:///data/listener.db",
+    parser.add_argument("--database", default=config.database_url,
                        help="Database URL")
 
     args = parser.parse_args()
