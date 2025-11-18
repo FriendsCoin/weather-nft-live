@@ -32,6 +32,16 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.database import SessionManager, Session
 from src.utils.meditation_analysis import MeditationAnalyzer
+from src.utils.rich_cli import (
+    console,
+    get_progress,
+    print_header,
+    print_success,
+    print_error,
+    print_warning,
+    create_table,
+    is_rich_available
+)
 
 
 class MigrationTool:
@@ -230,34 +240,56 @@ class MigrationTool:
             print(f"❌ No .h5 files found in {sessions_dir}")
             return {}
 
-        print(f"\n📂 Found {len(h5_files)} session files")
-        print(f"   Directory: {sessions_dir}")
+        console.print(f"\n📂 Found {len(h5_files)} session files")
+        console.print(f"   Directory: {sessions_dir}")
         print()
 
-        # Migrate each session
+        # Migrate each session with progress bar
         migrated = 0
         skipped = 0
         failed = 0
 
-        for h5_file in h5_files:
-            result = self.migrate_session(str(h5_file), dry_run=dry_run)
+        with get_progress() as progress:
+            task = progress.add_task(
+                f"[cyan]Migrating sessions{'[yellow] (dry run)' if dry_run else ''}[/cyan]",
+                total=len(h5_files)
+            )
 
-            if result:
-                migrated += 1
-            elif result is None:
-                failed += 1
-            else:
-                skipped += 1
+            for h5_file in h5_files:
+                result = self.migrate_session(str(h5_file), dry_run=dry_run)
 
-        # Summary
+                if result:
+                    migrated += 1
+                elif result is None:
+                    failed += 1
+                else:
+                    skipped += 1
+
+                progress.update(task, advance=1)
+
+        # Summary with Rich table
         print()
-        print("=" * 60)
-        print(f"  📊 Migration {'Preview' if dry_run else 'Complete'}")
-        print("=" * 60)
-        print(f"Migrated:  {migrated}")
-        print(f"Skipped:   {skipped}")
-        print(f"Failed:    {failed}")
-        print("=" * 60)
+        print_header(f"Migration {'Preview' if dry_run else 'Complete'}")
+
+        # Create summary table
+        if is_rich_available():
+            table = create_table(
+                "Migration Results",
+                ["Status", "Count"],
+                [
+                    ["✅ Migrated", str(migrated)],
+                    ["⏭️  Skipped", str(skipped)],
+                    ["❌ Failed", str(failed)],
+                    ["📊 Total", str(len(h5_files))]
+                ]
+            )
+            console.print(table)
+        else:
+            print(f"Migrated:  {migrated}")
+            print(f"Skipped:   {skipped}")
+            print(f"Failed:    {failed}")
+            print(f"Total:     {len(h5_files)}")
+        print()
 
         if dry_run:
             print()
