@@ -8,6 +8,9 @@ from .audio_gen import VoiceGenerator
 from .meditation_analysis import MeditationAnalyzer
 from .mood_tracker import MoodTracker
 from .session_journal import SessionJournal
+from .report_generator import ReportGenerator
+from .video_compiler import VideoCompiler
+from .data_exporter import DataExporter
 
 # Optional: Local GPU image generation (requires diffusers)
 try:
@@ -27,5 +30,8 @@ __all__ = [
     "MeditationAnalyzer",
     "MoodTracker",
     "SessionJournal",
+    "ReportGenerator",
+    "VideoCompiler",
+    "DataExporter",
     "LOCAL_GPU_AVAILABLE",
 ]
