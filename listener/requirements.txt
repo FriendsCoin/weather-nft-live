@@ -49,6 +49,18 @@ websockets>=12.0            # WebSocket server for live neurofeedback streaming
 python-osc>=1.8.0           # OSC protocol for TouchDesigner integration (optional)
 
 # ============================================================
+# BIOFEEDBACK GAME / INTERACTIVE VISUALIZATION
+# ============================================================
+pygame>=2.5.0               # Interactive visual feedback system
+
+# ============================================================
+# WEB DASHBOARD
+# ============================================================
+fastapi>=0.108.0            # Modern web framework for REST API
+uvicorn>=0.25.0             # ASGI server for FastAPI
+python-multipart>=0.0.6     # File upload support (optional)
+
+# ============================================================
 # LOCAL GPU INFERENCE (Optional - for running SD locally)
 # ============================================================
 # Uncomment if you want to run Stable Diffusion on your GPU:
@@ -101,5 +113,8 @@ rich>=13.7.0                # Beautiful terminal output
 # DEVELOPMENT & TESTING (optional)
 # ============================================================
 pytest>=7.4.0               # Testing framework
+pytest-cov>=4.1.0           # Coverage reporting
+pytest-asyncio>=0.21.0      # Async test support
 black>=23.12.0              # Code formatting
 isort>=5.13.0               # Import sorting
+mypy>=1.7.0                 # Type checking
