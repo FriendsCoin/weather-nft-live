@@ -108,8 +108,26 @@ class MigrationTool:
             except:
                 recorded_at = datetime.fromtimestamp(h5_path.stat().st_mtime)
 
-            # Compute duration from features
-            duration_seconds = len(features_df) * 1.0  # Assuming 1 Hz sampling
+            # Compute duration from EEG data if available, otherwise from features
+            try:
+                # Try to load EEG data to get accurate duration
+                eeg_data = pd.read_hdf(h5_path, key='eeg_data')
+                # EEG data shape: (n_channels, n_samples)
+                # Muse S sampling rate: 256 Hz
+                SAMPLING_RATE = 256.0
+                n_samples = eeg_data.shape[1] if len(eeg_data.shape) > 1 else len(eeg_data)
+                duration_seconds = n_samples / SAMPLING_RATE
+                print(f"   Duration calculated from EEG data: {duration_seconds:.1f}s")
+            except (KeyError, Exception):
+                # EEG data not available, use features length
+                # Typically features are extracted from full session (one row per session)
+                # Default assumption: 600 seconds (10 minutes) per session
+                duration_seconds = 600.0  # Default 10-minute session
+                if len(features_df) > 1:
+                    # Multiple feature rows might indicate windowed extraction
+                    # This is less common, but handle it
+                    duration_seconds = len(features_df) * 10.0  # Assume 10s windows
+                print(f"   Duration estimated (no EEG data): {duration_seconds:.1f}s")
 
             # Extract band power statistics
             alpha_cols = [c for c in features_df.columns if 'alpha' in c.lower() and 'mean' in c.lower()]

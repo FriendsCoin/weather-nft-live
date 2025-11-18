@@ -49,12 +49,13 @@ from typing import Optional
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.pipeline.eeg_processor import EEGProcessor
-from src.pipeline.feature_extractor import FeatureExtractor
-from src.models.vae import VAE
-from src.pipeline.meditation_analyzer import MeditationAnalyzer
+from src.pipeline.realtime_feedback import RealtimeFeedback
+from src.pipeline.feature_extraction import FeatureExtractor
+from src.models.vae import MeditationVAE
+from src.utils.meditation_analysis import MeditationAnalyzer
 from src.pipeline.visual_feedback import VisualFeedback
 from src.pipeline.osc_server import OSCServer
+import pylsl
 
 
 # ============================================================
@@ -127,12 +128,13 @@ class BiofeedbackGame:
         self.update_rate = update_rate
 
         # Components
-        self.eeg_processor = None
+        self.realtime_feedback = None
         self.feature_extractor = None
         self.vae = None
         self.analyzer = None
         self.visual = None
         self.osc = None
+        self.lsl_inlet = None
 
         # State
         self.running = False
@@ -164,10 +166,23 @@ class BiofeedbackGame:
         print("📊 Initializing EEG pipeline...")
 
         try:
-            self.eeg_processor = EEGProcessor(
-                duration=10,  # 10 second windows
-                lsl_stream_name='Muse'
+            # Initialize real-time feedback system
+            self.realtime_feedback = RealtimeFeedback(
+                window_size=10.0,  # 10 second windows
+                update_rate=self.update_rate,
+                sfreq=256.0,
+                channels=['TP9', 'AF7', 'AF8', 'TP10']
             )
+
+            # Connect to LSL stream
+            print("   Searching for Muse stream...")
+            streams = pylsl.resolve_byprop('type', 'EEG', timeout=5.0)
+            if not streams:
+                raise RuntimeError("No EEG stream found. Is 'muselsl stream' running?")
+
+            self.lsl_inlet = pylsl.StreamInlet(streams[0])
+            print(f"   ✅ Connected to {streams[0].name()}")
+
             self.feature_extractor = FeatureExtractor()
             print("   ✅ EEG pipeline ready")
 
@@ -189,7 +204,7 @@ class BiofeedbackGame:
         input_dim = checkpoint.get('input_dim', 34)
         latent_dim = checkpoint.get('latent_dim', 32)
 
-        self.vae = VAE(input_dim=input_dim, latent_dim=latent_dim)
+        self.vae = MeditationVAE(input_dim=input_dim, latent_dim=latent_dim)
         self.vae.load_state_dict(checkpoint['model_state_dict'])
         self.vae.eval()
 
@@ -240,60 +255,76 @@ class BiofeedbackGame:
     def _eeg_processing_loop(self):
         """
         Background thread for EEG processing
-        Continuously processes EEG and updates metrics
+        Continuously reads from LSL stream and updates metrics
         """
         print("\n🎬 Starting EEG processing loop...")
 
         import torch
 
         try:
+            last_analysis_time = time.time()
+
             while not self.stop_event.is_set():
-                # Capture EEG window
-                eeg_data = self.eeg_processor.get_eeg_data()
+                # Pull sample from LSL stream (non-blocking)
+                sample, timestamp = self.lsl_inlet.pull_sample(timeout=0.1)
 
-                if eeg_data is None:
-                    print("⚠️  No EEG data received, retrying...")
-                    time.sleep(1)
-                    continue
+                if sample is None:
+                    continue  # No data yet, try again
 
-                # Extract features
-                features = self.feature_extractor.extract_features(eeg_data)
+                # Add sample to real-time feedback buffer
+                self.realtime_feedback.add_sample(timestamp, np.array(sample))
 
-                # Encode to latent space
-                with torch.no_grad():
-                    features_tensor = torch.tensor(
-                        features,
-                        dtype=torch.float32
-                    ).unsqueeze(0)
-                    mu, logvar = self.vae.encode(features_tensor)
-                    latent = mu.numpy()[0]  # Use mean, not sampled
+                # Check if we should analyze (based on update_rate)
+                current_time = time.time()
+                if (current_time - last_analysis_time) >= self.update_rate:
+                    # Get current state from realtime feedback
+                    rt_state = self.realtime_feedback.get_current_state()
 
-                # Analyze meditation state
-                analysis = self.analyzer.analyze_session(
-                    features=features,
-                    latent_vector=latent
-                )
+                    if rt_state is None:
+                        continue  # Not enough data yet
 
-                # Create state dict
-                state = {
-                    'depth': analysis['depth_score'],
-                    'quality': analysis['quality_score'],
-                    'alpha_plus': analysis['performance_ratios']['alpha_plus'],
-                    'alpha_minus': analysis['performance_ratios']['alpha_minus'],
-                    'beta_plus': analysis['performance_ratios']['beta_plus'],
-                    'beta_minus': analysis['performance_ratios']['beta_minus'],
-                    'theta': features[5],  # Theta power
-                    'delta': features[4],  # Delta power
-                    'state': analysis['state'],
-                    'message': self._get_poetic_message(analysis['state'])
-                }
+                    # Extract features for VAE encoding
+                    # Get buffered EEG data
+                    eeg_buffer = np.array(self.realtime_feedback.eeg_buffer).T  # [channels, samples]
 
-                # Send to main thread via queue
-                if not self.metric_queue.full():
-                    self.metric_queue.put(state)
+                    # Only process if we have enough data
+                    if eeg_buffer.shape[1] >= 256:  # At least 1 second of data
+                        features = self.feature_extractor.extract_features(eeg_buffer)
 
-                # Wait before next update
-                time.sleep(self.update_rate)
+                        # Encode to latent space
+                        with torch.no_grad():
+                            features_tensor = torch.tensor(
+                                features,
+                                dtype=torch.float32
+                            ).unsqueeze(0)
+                            mu, logvar = self.vae.encode(features_tensor)
+                            latent = mu.numpy()[0]  # Use mean, not sampled
+
+                        # Analyze meditation state
+                        analysis = self.analyzer.analyze_session(
+                            features=features,
+                            latent_vector=latent
+                        )
+
+                        # Create state dict
+                        state = {
+                            'depth': analysis['depth_score'],
+                            'quality': analysis['quality_score'],
+                            'alpha_plus': analysis['performance_ratios']['alpha_plus'],
+                            'alpha_minus': analysis['performance_ratios']['alpha_minus'],
+                            'beta_plus': analysis['performance_ratios']['beta_plus'],
+                            'beta_minus': analysis['performance_ratios']['beta_minus'],
+                            'theta': features[5],  # Theta power
+                            'delta': features[4],  # Delta power
+                            'state': analysis['state'],
+                            'message': self._get_poetic_message(analysis['state'])
+                        }
+
+                        # Send to main thread via queue
+                        if not self.metric_queue.full():
+                            self.metric_queue.put(state)
+
+                        last_analysis_time = current_time
 
         except Exception as e:
             print(f"\n❌ EEG processing error: {e}")
