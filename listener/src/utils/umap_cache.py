@@ -24,6 +24,7 @@ Performance:
 
 import hashlib
 import pickle
+import os
 import numpy as np
 from pathlib import Path
 from typing import Optional, Tuple, Dict, Any
@@ -219,11 +220,28 @@ class UMAPCache:
                     }
                 }
 
-                with open(cache_path, 'wb') as f:
-                    pickle.dump(cache_data, f)
-
-                if verbose:
-                    print(f"💾 Cached to: {cache_path.name}")
+                # Write to temporary file first, then atomic rename
+                # This prevents corruption from concurrent writes
+                import tempfile
+                temp_fd, temp_path = tempfile.mkstemp(
+                    dir=self.cache_dir,
+                    prefix='.tmp_',
+                    suffix='.pkl'
+                )
+                try:
+                    with os.fdopen(temp_fd, 'wb') as f:
+                        pickle.dump(cache_data, f)
+                    # Atomic rename (replaces existing file atomically)
+                    Path(temp_path).replace(cache_path)
+                    if verbose:
+                        print(f"💾 Cached to: {cache_path.name}")
+                except Exception as e:
+                    # Clean up temp file if rename fails
+                    try:
+                        os.unlink(temp_path)
+                    except:
+                        pass
+                    raise e
 
                 # Update metadata
                 self.metadata[cache_key] = {

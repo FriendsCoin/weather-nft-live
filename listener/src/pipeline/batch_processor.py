@@ -111,6 +111,11 @@ class BatchProcessor:
         extractor = FeatureExtractor(sfreq=sfreq)
 
         # Extract features in parallel
+        # Note: Using ThreadPoolExecutor instead of ProcessPoolExecutor because:
+        # 1. NumPy/SciPy operations release the GIL, allowing true parallelism
+        # 2. No pickling overhead (faster for large EEG arrays)
+        # 3. Shared memory for feature extractor object
+        # For pure Python CPU-bound work, ProcessPoolExecutor would be better
         results = [None] * len(eeg_data_list)
 
         if show_progress:
@@ -216,6 +221,24 @@ class BatchProcessor:
                                     mu, logvar = vae_model.encode(features_tensor.unsqueeze(0))
                                     latent = mu.cpu().numpy().flatten()
                                     results[start_idx + i] = latent
+                                except RuntimeError as e:
+                                    # Handle CUDA OOM by falling back to CPU
+                                    if "out of memory" in str(e).lower():
+                                        print(f"\n⚠️  CUDA OOM at session {start_idx + i}, falling back to CPU...")
+                                        torch.cuda.empty_cache()
+                                        try:
+                                            features_tensor = features_tensor.to('cpu')
+                                            vae_model_cpu = vae_model.to('cpu')
+                                            mu, logvar = vae_model_cpu.encode(features_tensor.unsqueeze(0))
+                                            latent = mu.numpy().flatten()
+                                            results[start_idx + i] = latent
+                                            vae_model.to(self.device)  # Move back to GPU
+                                        except Exception as e2:
+                                            print(f"\n⚠️  CPU fallback failed: {e2}")
+                                            results[start_idx + i] = None
+                                    else:
+                                        print(f"\n⚠️  Error encoding session {start_idx + i}: {e}")
+                                        results[start_idx + i] = None
                                 except Exception as e:
                                     print(f"\n⚠️  Error encoding session {start_idx + i}: {e}")
                                     results[start_idx + i] = None
@@ -231,6 +254,24 @@ class BatchProcessor:
                             mu, logvar = vae_model.encode(features_tensor.unsqueeze(0))
                             latent = mu.cpu().numpy().flatten()
                             results[idx] = latent
+                        except RuntimeError as e:
+                            # Handle CUDA OOM by falling back to CPU
+                            if "out of memory" in str(e).lower():
+                                print(f"⚠️  CUDA OOM at session {idx}, falling back to CPU...")
+                                torch.cuda.empty_cache()
+                                try:
+                                    features_tensor = torch.FloatTensor(features_array).to('cpu')
+                                    vae_model_cpu = vae_model.to('cpu')
+                                    mu, logvar = vae_model_cpu.encode(features_tensor.unsqueeze(0))
+                                    latent = mu.numpy().flatten()
+                                    results[idx] = latent
+                                    vae_model.to(self.device)  # Move back
+                                except Exception as e2:
+                                    print(f"⚠️  CPU fallback failed: {e2}")
+                                    results[idx] = None
+                            else:
+                                print(f"⚠️  Error encoding session {idx}: {e}")
+                                results[idx] = None
                         except Exception as e:
                             print(f"⚠️  Error encoding session {idx}: {e}")
                             results[idx] = None
@@ -374,10 +415,21 @@ class BatchProcessor:
 
             # Save results
             if save_results:
-                features_df.to_hdf(session_file, key='features', mode='a')
-                if latent is not None:
-                    latent_df = pd.DataFrame(latent.reshape(1, -1))
-                    latent_df.to_hdf(session_file, key='latent', mode='a')
+                try:
+                    # Use HDFStore to handle existing keys properly
+                    with pd.HDFStore(session_file, mode='a') as store:
+                        # Remove existing keys if present
+                        if 'features' in store:
+                            store.remove('features')
+                        store.put('features', features_df)
+
+                        if latent is not None:
+                            latent_df = pd.DataFrame(latent.reshape(1, -1))
+                            if 'latent' in store:
+                                store.remove('latent')
+                            store.put('latent', latent_df)
+                except Exception as e:
+                    print(f"Warning: Could not save results to {session_file}: {e}")
 
             return ProcessingResult(
                 session_id=session_id,

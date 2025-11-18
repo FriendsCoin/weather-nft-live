@@ -62,17 +62,18 @@ def load_session_data(session_id: str, db_manager: SessionManager) -> Optional[D
         if h5_path and h5_path.exists():
             try:
                 features_data = pd.read_hdf(h5_path, key='features')
-            except:
+            except (KeyError, IOError, OSError, ValueError) as e:
+                # Key doesn't exist, file corrupted, or permission issue
                 pass
 
             try:
                 eeg_data = pd.read_hdf(h5_path, key='eeg_data')
-            except:
+            except (KeyError, IOError, OSError, ValueError) as e:
                 pass
 
             try:
                 latent_data = pd.read_hdf(h5_path, key='latent')
-            except:
+            except (KeyError, IOError, OSError, ValueError) as e:
                 pass
 
         return {
@@ -231,6 +232,13 @@ def main():
     )
 
     args = parser.parse_args()
+
+    # Validate sessions are different
+    if args.session1 == args.session2:
+        print("\n❌ Cannot compare a session to itself")
+        print(f"   Both arguments are: {args.session1}")
+        print("\nUsage: compare_sessions.py <session_id_1> <session_id_2>")
+        sys.exit(1)
 
     # Redirect output if exporting
     if args.export:
