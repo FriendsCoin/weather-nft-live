@@ -140,6 +140,12 @@ def main():
         print("   Run migration first: python src/database/migration.py --sessions-dir data/sessions")
         return
 
+    # Validate minimum session count for 3D visualizations
+    if (args.latent_space or args.journey or args.vr_export) and len(sessions) < 2:
+        print(f"❌ Need at least 2 sessions for 3D visualization (found {len(sessions)})")
+        print("   Record more meditation sessions first")
+        return
+
     print(f"✅ Loaded {len(sessions)} sessions")
     if args.days:
         print(f"   Time range: Last {args.days} days")
