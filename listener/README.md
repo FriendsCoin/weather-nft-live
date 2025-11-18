@@ -179,6 +179,36 @@ python scripts/live_neurofeedback.py --save-client
 
 **See docs/REALTIME_FEEDBACK.md for complete guide**
 
+### 7. Database Integration (NEW!)
+
+**Structured storage** for all meditation data, replacing scattered .h5 files:
+
+```bash
+# Migrate existing sessions to database
+python src/database/migration.py \
+    --sessions-dir data/sessions \
+    --database sqlite:///data/listener.db
+
+# Preview migration first
+python src/database/migration.py --sessions-dir data/sessions --dry-run
+
+# Query sessions
+python -c "from src.database import SessionManager; \
+    manager = SessionManager('sqlite:///data/listener.db'); \
+    sessions = manager.get_recent_sessions(10); \
+    print(f'Recent sessions: {len(sessions)}')"
+```
+
+**Features:**
+- 📊 Structured storage (SQLite or PostgreSQL)
+- 🔍 Advanced querying (find sessions by any criteria)
+- 📈 Fast aggregated statistics
+- 🔄 Seamless migration from .h5 files
+- 💾 Backward compatible (keeps .h5 for full timeseries)
+- 🎯 Fluent QueryBuilder API
+
+**See docs/DATABASE.md for complete guide**
+
 ## Project Structure
 
 ```
