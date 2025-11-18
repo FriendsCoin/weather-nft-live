@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>THE LISTENER - Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="container">
+            <h1>🧘 THE LISTENER</h1>
+            <p class="subtitle">Meditation Session Dashboard</p>
+        </div>
+    </header>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="container">
+            <button class="nav-btn active" data-view="overview">Overview</button>
+            <button class="nav-btn" data-view="sessions">Sessions</button>
+            <button class="nav-btn" data-view="live">Live</button>
+            <button class="nav-btn" data-view="gallery">Gallery</button>
+            <button class="nav-btn" data-view="statistics">Statistics</button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container">
+
+        <!-- Overview View -->
+        <section id="overview-view" class="view active">
+            <h2>Overview</h2>
+
+            <!-- Stats Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">📊</div>
+                    <div class="stat-value" id="total-sessions">--</div>
+                    <div class="stat-label">Total Sessions</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🧘</div>
+                    <div class="stat-value" id="avg-depth">--</div>
+                    <div class="stat-label">Avg Depth</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⭐</div>
+                    <div class="stat-value" id="avg-quality">--</div>
+                    <div class="stat-label">Avg Quality</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⏱️</div>
+                    <div class="stat-value" id="total-time">--</div>
+                    <div class="stat-label">Total Hours</div>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h3>Meditation Depth Trend</h3>
+                    <canvas id="depth-chart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3>Quality Score Trend</h3>
+                    <canvas id="quality-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- Recent Sessions -->
+            <div class="recent-sessions">
+                <h3>Recent Sessions</h3>
+                <div id="recent-sessions-list"></div>
+            </div>
+        </section>
+
+        <!-- Sessions View -->
+        <section id="sessions-view" class="view">
+            <h2>All Sessions</h2>
+
+            <!-- Filters -->
+            <div class="filters">
+                <input type="number" id="filter-min-depth" placeholder="Min Depth" min="0" max="100">
+                <input type="number" id="filter-min-quality" placeholder="Min Quality" min="0" max="100">
+                <input type="number" id="filter-days" placeholder="Last N Days" min="1">
+                <select id="filter-tag">
+                    <option value="">All Tags</option>
+                </select>
+                <button id="apply-filters">Apply</button>
+                <button id="clear-filters">Clear</button>
+            </div>
+
+            <!-- Sessions List -->
+            <div id="sessions-list" class="sessions-grid"></div>
+
+            <!-- Pagination -->
+            <div class="pagination">
+                <button id="prev-page">Previous</button>
+                <span id="page-info">Page 1</span>
+                <button id="next-page">Next</button>
+            </div>
+        </section>
+
+        <!-- Live View -->
+        <section id="live-view" class="view">
+            <h2>Live Neurofeedback</h2>
+
+            <div class="live-status">
+                <div class="status-indicator" id="live-status">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Disconnected</span>
+                </div>
+            </div>
+
+            <div class="live-display">
+                <div class="live-circle-container">
+                    <div class="live-circle" id="live-circle"></div>
+                    <div class="live-message" id="live-message">Waiting for connection...</div>
+                </div>
+
+                <div class="live-metrics">
+                    <div class="metric">
+                        <span class="metric-label">Depth</span>
+                        <span class="metric-value" id="live-depth">--</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Quality</span>
+                        <span class="metric-value" id="live-quality">--</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Alpha</span>
+                        <span class="metric-value" id="live-alpha">--</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Beta</span>
+                        <span class="metric-value" id="live-beta">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="live-instructions">
+                <h3>How to Start Live Session</h3>
+                <ol>
+                    <li>Connect Muse S and run: <code>muselsl stream</code></li>
+                    <li>Start neurofeedback: <code>python scripts/live_neurofeedback.py</code></li>
+                    <li>Dashboard will automatically connect</li>
+                </ol>
+            </div>
+        </section>
+
+        <!-- Gallery View -->
+        <section id="gallery-view" class="view">
+            <h2>Generated Memories</h2>
+
+            <div class="gallery-filters">
+                <button class="gallery-filter active" data-type="all">All</button>
+                <button class="gallery-filter" data-type="image">Images</button>
+                <button class="gallery-filter" data-type="video">Videos</button>
+                <button class="gallery-filter" data-type="audio">Audio</button>
+            </div>
+
+            <div id="gallery-grid" class="gallery-grid"></div>
+        </section>
+
+        <!-- Statistics View -->
+        <section id="statistics-view" class="view">
+            <h2>Detailed Statistics</h2>
+
+            <!-- Time Range Selector -->
+            <div class="time-range-selector">
+                <button class="time-btn active" data-days="7">Last 7 Days</button>
+                <button class="time-btn" data-days="30">Last 30 Days</button>
+                <button class="time-btn" data-days="90">Last 90 Days</button>
+                <button class="time-btn" data-days="all">All Time</button>
+            </div>
+
+            <!-- Detailed Stats -->
+            <div class="detailed-stats">
+                <div class="stats-section">
+                    <h3>Session Statistics</h3>
+                    <div id="session-stats"></div>
+                </div>
+
+                <div class="stats-section">
+                    <h3>Best Sessions</h3>
+                    <div id="best-sessions"></div>
+                </div>
+
+                <div class="stats-section">
+                    <h3>Progress Over Time</h3>
+                    <canvas id="progress-chart"></canvas>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>THE LISTENER - AI Meditation Companion</p>
+            <p>Art Installation by [Artist Name] • 2025-2026</p>
+        </div>
+    </footer>
+
+    <!-- Session Detail Modal -->
+    <div id="session-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <div id="session-detail"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

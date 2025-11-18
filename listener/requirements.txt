@@ -49,6 +49,13 @@ websockets>=12.0            # WebSocket server for live neurofeedback streaming
 python-osc>=1.8.0           # OSC protocol for TouchDesigner integration (optional)
 
 # ============================================================
+# WEB DASHBOARD
+# ============================================================
+fastapi>=0.108.0            # Modern web framework for REST API
+uvicorn>=0.25.0             # ASGI server for FastAPI
+python-multipart>=0.0.6     # File upload support (optional)
+
+# ============================================================
 # LOCAL GPU INFERENCE (Optional - for running SD locally)
 # ============================================================
 # Uncomment if you want to run Stable Diffusion on your GPU:
