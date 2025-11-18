@@ -105,7 +105,9 @@ class MigrationTool:
                 else:
                     # Fall back to file modification time
                     recorded_at = datetime.fromtimestamp(h5_path.stat().st_mtime)
-            except:
+            except (ValueError, IndexError, OSError) as e:
+                # Failed to parse timestamp from session_id, use file modification time
+                print(f"   Warning: Could not parse timestamp from {session_id}: {e}")
                 recorded_at = datetime.fromtimestamp(h5_path.stat().st_mtime)
 
             # Compute duration from EEG data if available, otherwise from features

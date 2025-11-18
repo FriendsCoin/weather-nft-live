@@ -65,8 +65,12 @@ class ConnectionManager:
         for connection in self.active_connections:
             try:
                 await connection.send_json(message)
-            except:
-                pass
+            except (RuntimeError, ConnectionError) as e:
+                # Connection closed or broken, will be cleaned up later
+                print(f"Warning: Failed to send to connection: {e}")
+            except Exception as e:
+                # Unexpected error, log it
+                print(f"Error broadcasting message: {e}")
 
 manager = ConnectionManager()
 
