@@ -26,6 +26,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.database import SessionManager, QueryBuilder
 from src.database.schema import Session
+from src.config import config
 
 # Initialize FastAPI
 app = FastAPI(
@@ -43,8 +44,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Database connection
-db_manager = SessionManager("sqlite:///data/listener.db")
+# Database connection (uses centralized config)
+db_manager = SessionManager()
 
 # WebSocket connection manager for live data
 class ConnectionManager:

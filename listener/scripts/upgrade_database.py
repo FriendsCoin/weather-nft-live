@@ -17,6 +17,8 @@ from sqlalchemy import create_engine, inspect, Index
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from src.config import config
+
 from src.database import Session
 
 
@@ -110,7 +112,7 @@ def main():
 
     parser.add_argument(
         "--database",
-        default="sqlite:///data/listener.db",
+        default=config.database_url,
         help="Database URL (default: sqlite:///data/listener.db)"
     )
     parser.add_argument(
