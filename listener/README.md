@@ -153,6 +153,32 @@ python -m src.utils.session_journal --summary
 python -m src.utils.session_journal --export journal.md
 ```
 
+### 6. Real-Time Neurofeedback (NEW!)
+
+**Live meditation feedback** for performance, exhibition, and personal practice:
+
+```bash
+# Start Muse S stream (terminal 1)
+muselsl stream
+
+# Start real-time neurofeedback (terminal 2)
+python scripts/live_neurofeedback.py
+
+# Generate test visualization client
+python scripts/live_neurofeedback.py --save-client
+
+# Open test_client.html in browser to see live visualization!
+```
+
+**Features:**
+- 🔴 Real-time processing (5s rolling window, 0.5s updates)
+- 🎨 Visual feedback (circle size = depth, color = alpha state)
+- 🌐 WebSocket streaming (connect custom visualizations)
+- 🎯 Personal calibration (adapts to your brain patterns)
+- 💬 State messages ("Deep relaxation", "Active mind", etc.)
+
+**See docs/REALTIME_FEEDBACK.md for complete guide**
+
 ## Project Structure
 
 ```
