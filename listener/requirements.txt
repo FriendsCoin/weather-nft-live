@@ -22,6 +22,8 @@ scikit-learn>=1.3.0         # ML utilities, train/val splits
 h5py>=3.10.0                # HDF5 file format (efficient for timeseries)
 pandas>=2.1.0               # Data manipulation
 pyyaml>=6.0                 # Configuration files
+sqlalchemy>=2.0.0           # Database ORM (for structured session storage)
+alembic>=1.13.0             # Database migrations (optional)
 
 # ============================================================
 # VISUALIZATION & MONITORING
@@ -39,6 +41,12 @@ anthropic>=0.7.0            # Claude API (for poetic interpretations)
 replicate>=0.22.0           # Stable Diffusion API (cloud-based image generation)
 requests>=2.31.0            # HTTP requests
 aiohttp>=3.9.0              # Async HTTP (if needed)
+
+# ============================================================
+# REAL-TIME COMMUNICATION
+# ============================================================
+websockets>=12.0            # WebSocket server for live neurofeedback streaming
+python-osc>=1.8.0           # OSC protocol for TouchDesigner integration (optional)
 
 # ============================================================
 # LOCAL GPU INFERENCE (Optional - for running SD locally)
