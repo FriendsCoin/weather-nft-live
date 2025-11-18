@@ -12,6 +12,7 @@ from .report_generator import ReportGenerator
 from .video_compiler import VideoCompiler
 from .data_exporter import DataExporter
 from .visualization_3d import Visualization3D
+from .logging_config import setup_logging, get_logger, LogTimer, log_function_call
 
 # Optional: Local GPU image generation (requires diffusers)
 try:
@@ -35,5 +36,9 @@ __all__ = [
     "VideoCompiler",
     "DataExporter",
     "Visualization3D",
+    "setup_logging",
+    "get_logger",
+    "LogTimer",
+    "log_function_call",
     "LOCAL_GPU_AVAILABLE",
 ]
