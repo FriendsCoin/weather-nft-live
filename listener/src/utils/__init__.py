@@ -11,6 +11,7 @@ from .session_journal import SessionJournal
 from .report_generator import ReportGenerator
 from .video_compiler import VideoCompiler
 from .data_exporter import DataExporter
+from .visualization_3d import Visualization3D
 
 # Optional: Local GPU image generation (requires diffusers)
 try:
@@ -33,5 +34,6 @@ __all__ = [
     "ReportGenerator",
     "VideoCompiler",
     "DataExporter",
+    "Visualization3D",
     "LOCAL_GPU_AVAILABLE",
 ]
