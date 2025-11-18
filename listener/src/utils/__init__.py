@@ -6,6 +6,8 @@ from .visualization import Visualizer
 from .video_gen import VideoGenerator
 from .audio_gen import VoiceGenerator
 from .meditation_analysis import MeditationAnalyzer
+from .mood_tracker import MoodTracker
+from .session_journal import SessionJournal
 
 # Optional: Local GPU image generation (requires diffusers)
 try:
@@ -23,5 +25,7 @@ __all__ = [
     "VideoGenerator",
     "VoiceGenerator",
     "MeditationAnalyzer",
+    "MoodTracker",
+    "SessionJournal",
     "LOCAL_GPU_AVAILABLE",
 ]

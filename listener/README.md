@@ -120,6 +120,65 @@ python scripts/train_vae.py --sessions data/sessions/*.h5
 python scripts/generate_memories.py --checkpoint checkpoints/epoch_50.pt --num-samples 10
 ```
 
+### 5. Track Progress & Insights
+
+**Integrated Workflow** (combines all tracking features):
+
+```bash
+# Before meditation
+python scripts/meditation_session.py --before
+
+# After meditation (with session file)
+python scripts/meditation_session.py --after --session data/sessions/session_001.h5
+
+# View progress
+python scripts/meditation_session.py --stats
+```
+
+**Individual Tools:**
+
+```bash
+# Quick stats overview
+python scripts/quick_stats.py
+python scripts/quick_stats.py --last 7  # Last 7 sessions
+
+# Mood tracking
+python -m src.utils.mood_tracker --before --stress 4 --energy 2 --happiness 3 --focus 2
+python -m src.utils.mood_tracker --after --stress 2 --energy 4 --happiness 4 --focus 4
+python -m src.utils.mood_tracker --stats
+
+# Session journaling
+python -m src.utils.session_journal --session session_001 --notes "Deep session" --rating 5
+python -m src.utils.session_journal --summary
+python -m src.utils.session_journal --export journal.md
+```
+
+### 6. Real-Time Neurofeedback (NEW!)
+
+**Live meditation feedback** for performance, exhibition, and personal practice:
+
+```bash
+# Start Muse S stream (terminal 1)
+muselsl stream
+
+# Start real-time neurofeedback (terminal 2)
+python scripts/live_neurofeedback.py
+
+# Generate test visualization client
+python scripts/live_neurofeedback.py --save-client
+
+# Open test_client.html in browser to see live visualization!
+```
+
+**Features:**
+- 🔴 Real-time processing (5s rolling window, 0.5s updates)
+- 🎨 Visual feedback (circle size = depth, color = alpha state)
+- 🌐 WebSocket streaming (connect custom visualizations)
+- 🎯 Personal calibration (adapts to your brain patterns)
+- 💬 State messages ("Deep relaxation", "Active mind", etc.)
+
+**See docs/REALTIME_FEEDBACK.md for complete guide**
+
 ## Project Structure
 
 ```
