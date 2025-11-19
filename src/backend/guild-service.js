@@ -10,6 +10,7 @@ const express = require('express');
 const cors = require('cors');
 const DatabaseService = require('./database');
 const { Guild, GuildMembership, AlgorithmRental, RevenueShare } = require('./models');
+const { authenticateToken } = require('./middleware/auth');
 
 const app = express();
 const PORT = process.env.GUILD_SERVICE_PORT || 3010;
@@ -110,53 +111,63 @@ app.get('/api/algorithms', (req, res) => {
  * Get algorithm details
  * GET /api/algorithms/:algorithmId
  */
-app.get('/api/algorithms/:algorithmId', (req, res) => {
-  const { algorithmId } = req.params;
-  const algorithm = AI_ALGORITHMS[algorithmId];
+app.get('/api/algorithms/:algorithmId', async (req, res) => {
+  try {
+    const { algorithmId } = req.params;
+    const algorithm = AI_ALGORITHMS[algorithmId];
 
-  if (!algorithm) {
-    return res.status(404).json({
+    if (!algorithm) {
+      return res.status(404).json({
+        success: false,
+        error: 'Algorithm not found'
+      });
+    }
+
+    // Find guilds renting this algorithm
+    const rentingGuildsData = await AlgorithmRental.find({
+      algorithmId,
+      status: 'active'
+    }).limit(5).lean();
+
+    const guildIds = rentingGuildsData.map(r => r.guildId);
+    const rentingGuilds = await Guild.find({ guildId: { $in: guildIds } }).lean();
+
+    const totalRenting = await AlgorithmRental.countDocuments({
+      algorithmId,
+      status: 'active'
+    });
+
+    res.json({
+      success: true,
+      data: {
+        ...algorithm,
+        renting_guilds_count: totalRenting,
+        renting_guilds: rentingGuilds.slice(0, 5) // Top 5
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
       success: false,
-      error: 'Algorithm not found'
+      error: error.message
     });
   }
-
-  // Find guilds renting this algorithm
-  const rentingGuildsData = await AlgorithmRental.find({
-    algorithmId,
-    status: 'active'
-  }).limit(5).lean();
-
-  const guildIds = rentingGuildsData.map(r => r.guildId);
-  const rentingGuilds = await Guild.find({ guildId: { $in: guildIds } }).lean();
-
-  const totalRenting = await AlgorithmRental.countDocuments({
-    algorithmId,
-    status: 'active'
-  });
-
-  res.json({
-    success: true,
-    data: {
-      ...algorithm,
-      renting_guilds_count: totalRenting,
-      renting_guilds: rentingGuilds.slice(0, 5) // Top 5
-    }
-  });
 });
 
 /**
- * Create a new guild
+ * Create a new guild (PROTECTED)
  * POST /api/guilds/create
  */
-app.post('/api/guilds/create', async (req, res) => {
+app.post('/api/guilds/create', authenticateToken, async (req, res) => {
   try {
-    const { name, description, founder, logo, algorithms } = req.body;
+    const { name, description, logo, algorithms } = req.body;
 
-    if (!name || !founder) {
+    // Get founder from authenticated user
+    const founder = req.user.walletAddress;
+
+    if (!name) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: name, founder'
+        error: 'Missing required field: name'
       });
     }
 
@@ -166,7 +177,7 @@ app.post('/api/guilds/create', async (req, res) => {
       guildId: guildId,
       name: name,
       description: description || '',
-      founder: founder, // Wallet address
+      founder: founder, // Wallet address from authenticated user
       logo: logo || null,
       members: [founder], // Founder is first member
       rentedAlgorithms: algorithms || [],
@@ -311,20 +322,14 @@ app.get('/api/guilds/:guildId', async (req, res) => {
 });
 
 /**
- * Join a guild
+ * Join a guild (PROTECTED)
  * POST /api/guilds/:guildId/join
  */
-app.post('/api/guilds/:guildId/join', async (req, res) => {
+app.post('/api/guilds/:guildId/join', authenticateToken, async (req, res) => {
   try {
     const { guildId } = req.params;
-    const { userAddress } = req.body;
-
-    if (!userAddress) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required field: userAddress'
-      });
-    }
+    // Get user address from authenticated user
+    const userAddress = req.user.walletAddress;
 
     const guild = await Guild.findOne({ guildId });
 
@@ -380,10 +385,10 @@ app.post('/api/guilds/:guildId/join', async (req, res) => {
 });
 
 /**
- * Rent an algorithm for a guild
+ * Rent an algorithm for a guild (PROTECTED)
  * POST /api/guilds/:guildId/rent-algorithm
  */
-app.post('/api/guilds/:guildId/rent-algorithm', async (req, res) => {
+app.post('/api/guilds/:guildId/rent-algorithm', authenticateToken, async (req, res) => {
   try {
     const { guildId } = req.params;
     const { algorithmId, txHash } = req.body;
@@ -465,14 +470,17 @@ app.post('/api/guilds/:guildId/rent-algorithm', async (req, res) => {
 });
 
 /**
- * Record a capture and distribute revenue
+ * Record a capture and distribute revenue (PROTECTED)
  * POST /api/guilds/capture-event
  */
-app.post('/api/guilds/capture-event', async (req, res) => {
+app.post('/api/guilds/capture-event', authenticateToken, async (req, res) => {
   try {
-    const { guildId, userAddress, algorithmId, eventId, capturePrice } = req.body;
+    const { guildId, algorithmId, eventId, capturePrice } = req.body;
 
-    if (!guildId || !userAddress || !capturePrice) {
+    // Get user address from authenticated user
+    const userAddress = req.user.walletAddress;
+
+    if (!guildId || !capturePrice) {
       return res.status(400).json({
         success: false,
         error: 'Missing required fields'

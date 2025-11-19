@@ -22,6 +22,7 @@ const cors = require('cors');
 const axios = require('axios');
 const DatabaseService = require('./database');
 const { Listing, Offer, MarketplaceTransaction } = require('./models');
+const { authenticateToken, verifyWalletOwnership } = require('./middleware/auth');
 
 const app = express();
 const PORT = process.env.MARKETPLACE_PORT || 3013;
@@ -70,14 +71,13 @@ const TRANSACTION_TYPE = {
 // ============================================
 
 /**
- * Create NFT listing
+ * Create NFT listing (PROTECTED)
  * POST /api/marketplace/listings
  */
-app.post('/api/marketplace/listings', async (req, res) => {
+app.post('/api/marketplace/listings', authenticateToken, async (req, res) => {
   try {
     const {
       nftId,
-      seller,
       price,
       currency = 'XTZ',
       duration = 30, // days
@@ -86,11 +86,14 @@ app.post('/api/marketplace/listings', async (req, res) => {
       buyNowPrice
     } = req.body;
 
+    // Get seller from authenticated user
+    const seller = req.user.walletAddress;
+
     // Validate required fields
-    if (!nftId || !seller || !price) {
+    if (!nftId || !price) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: nftId, seller, price'
+        error: 'Missing required fields: nftId, price'
       });
     }
 
@@ -291,13 +294,13 @@ app.get('/api/marketplace/listings/:listingId', async (req, res) => {
 });
 
 /**
- * Cancel listing
+ * Cancel listing (PROTECTED)
  * DELETE /api/marketplace/listings/:listingId
  */
-app.delete('/api/marketplace/listings/:listingId', async (req, res) => {
+app.delete('/api/marketplace/listings/:listingId', authenticateToken, async (req, res) => {
   try {
     const { listingId } = req.params;
-    const { seller } = req.body;
+    const seller = req.user.walletAddress;
 
     const listing = await Listing.findOne({ listingId });
 
@@ -353,17 +356,18 @@ app.delete('/api/marketplace/listings/:listingId', async (req, res) => {
 // ============================================
 
 /**
- * Buy NFT (direct purchase)
+ * Buy NFT (direct purchase) (PROTECTED)
  * POST /api/marketplace/buy
  */
-app.post('/api/marketplace/buy', async (req, res) => {
+app.post('/api/marketplace/buy', authenticateToken, async (req, res) => {
   try {
-    const { listingId, buyer, paymentMethod = 'wallet' } = req.body;
+    const { listingId, paymentMethod = 'wallet' } = req.body;
+    const buyer = req.user.walletAddress;
 
-    if (!listingId || !buyer) {
+    if (!listingId) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: listingId, buyer'
+        error: 'Missing required field: listingId'
       });
     }
 
@@ -454,21 +458,22 @@ app.post('/api/marketplace/buy', async (req, res) => {
 // ============================================
 
 /**
- * Create offer/bid on NFT
+ * Create offer/bid on NFT (PROTECTED)
  * POST /api/marketplace/offers
  */
-app.post('/api/marketplace/offers', async (req, res) => {
+app.post('/api/marketplace/offers', authenticateToken, async (req, res) => {
   try {
     const {
       listingId,
       nftId,
-      offerer,
       amount,
       currency = 'XTZ',
       duration = 7 // days
     } = req.body;
 
-    if ((!listingId && !nftId) || !offerer || !amount) {
+    const offerer = req.user.walletAddress;
+
+    if ((!listingId && !nftId) || !amount) {
       return res.status(400).json({
         success: false,
         error: 'Missing required fields'
@@ -607,13 +612,13 @@ app.get('/api/marketplace/offers', async (req, res) => {
 });
 
 /**
- * Accept offer
+ * Accept offer (PROTECTED)
  * POST /api/marketplace/offers/:offerId/accept
  */
-app.post('/api/marketplace/offers/:offerId/accept', async (req, res) => {
+app.post('/api/marketplace/offers/:offerId/accept', authenticateToken, async (req, res) => {
   try {
     const { offerId } = req.params;
-    const { seller } = req.body;
+    const seller = req.user.walletAddress;
 
     const offer = await Offer.findOne({ offerId });
 
@@ -704,10 +709,10 @@ app.post('/api/marketplace/offers/:offerId/accept', async (req, res) => {
 });
 
 /**
- * Reject offer
+ * Reject offer (PROTECTED)
  * POST /api/marketplace/offers/:offerId/reject
  */
-app.post('/api/marketplace/offers/:offerId/reject', async (req, res) => {
+app.post('/api/marketplace/offers/:offerId/reject', authenticateToken, async (req, res) => {
   try {
     const { offerId } = req.params;
     const offer = await Offer.findOne({ offerId });
@@ -739,13 +744,13 @@ app.post('/api/marketplace/offers/:offerId/reject', async (req, res) => {
 });
 
 /**
- * Cancel offer
+ * Cancel offer (PROTECTED)
  * DELETE /api/marketplace/offers/:offerId
  */
-app.delete('/api/marketplace/offers/:offerId', async (req, res) => {
+app.delete('/api/marketplace/offers/:offerId', authenticateToken, async (req, res) => {
   try {
     const { offerId } = req.params;
-    const { offerer } = req.body;
+    const offerer = req.user.walletAddress;
 
     const offer = await Offer.findOne({ offerId });
 

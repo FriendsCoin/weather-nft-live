@@ -13,6 +13,7 @@ const IPFSService = require('./ipfs-service');
 const AIArtGenerator = require('./ai-art-generator');
 const DatabaseService = require('./database');
 const { NFT } = require('./models');
+const { authenticateToken } = require('./middleware/auth');
 
 const app = express();
 const PORT = process.env.NFT_SERVICE_PORT || 3009;
@@ -128,21 +129,23 @@ app.post('/api/art/generate', async (req, res) => {
 });
 
 /**
- * Create complete NFT with AI art generation
+ * Create complete NFT with AI art generation (PROTECTED)
  * POST /api/nft/create-with-art
  * Generates art automatically from weather data
  */
-app.post('/api/nft/create-with-art', async (req, res) => {
+app.post('/api/nft/create-with-art', authenticateToken, async (req, res) => {
   try {
     const {
       eventId,
       weatherData,
       eventData,
       location,
-      owner,
       rarity,
       algorithm
     } = req.body;
+
+    // Get owner from authenticated user
+    const owner = req.user.walletAddress;
 
     if (!eventId || !weatherData || !eventData) {
       return res.status(400).json({
@@ -233,18 +236,17 @@ app.post('/api/nft/create-with-art', async (req, res) => {
 });
 
 /**
- * Create complete NFT from weather event
+ * Create complete NFT from weather event (PROTECTED)
  * POST /api/nft/create
  * Body: {
  *   eventId: string,
  *   weatherData: object,
  *   eventData: object,
  *   location: object,
- *   imageBase64: base64 string,
- *   owner: string (wallet address)
+ *   imageBase64: base64 string
  * }
  */
-app.post('/api/nft/create', async (req, res) => {
+app.post('/api/nft/create', authenticateToken, async (req, res) => {
   try {
     const {
       eventId,
@@ -252,10 +254,12 @@ app.post('/api/nft/create', async (req, res) => {
       eventData,
       location,
       imageBase64,
-      owner,
       rarity,
       algorithm
     } = req.body;
+
+    // Get owner from authenticated user
+    const owner = req.user.walletAddress;
 
     // Validate required fields
     if (!eventId || !weatherData || !eventData || !imageBase64) {
@@ -499,11 +503,11 @@ app.get('/api/nfts', async (req, res) => {
 });
 
 /**
- * Update NFT status (after blockchain minting)
+ * Update NFT status (after blockchain minting) (PROTECTED)
  * PUT /api/nft/:eventId/status
  * Body: { status: string, txHash?: string, tokenId?: string }
  */
-app.put('/api/nft/:eventId/status', async (req, res) => {
+app.put('/api/nft/:eventId/status', authenticateToken, async (req, res) => {
   try {
     const { eventId } = req.params;
     const { status, txHash, tokenId } = req.body;
