@@ -8,6 +8,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const DatabaseService = require('./database');
+const { Guild, GuildMembership, AlgorithmRental, RevenueShare } = require('./models');
 
 const app = express();
 const PORT = process.env.GUILD_SERVICE_PORT || 3010;
@@ -15,11 +17,8 @@ const PORT = process.env.GUILD_SERVICE_PORT || 3010;
 app.use(cors());
 app.use(express.json());
 
-// In-memory storage (replace with MongoDB in production)
-const guilds = new Map();
-const memberships = new Map();
-const algorithmRentals = new Map();
-const revenueShares = new Map();
+// Initialize database
+const db = new DatabaseService();
 
 // AI Algorithms available for rental
 const AI_ALGORITHMS = {
@@ -66,15 +65,33 @@ const AI_ALGORITHMS = {
 };
 
 // Health check
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'OK',
-    service: 'WeatherNFT Guild Service',
-    guilds_count: guilds.size,
-    total_members: memberships.size,
-    active_rentals: algorithmRentals.size,
-    timestamp: new Date().toISOString()
-  });
+app.get('/health', async (req, res) => {
+  try {
+    const isDbConnected = await db.healthCheck();
+    const [guildsCount, membersCount, rentalsCount] = await Promise.all([
+      Guild.countDocuments(),
+      GuildMembership.countDocuments(),
+      AlgorithmRental.countDocuments({ status: 'active' })
+    ]);
+
+    res.json({
+      status: 'OK',
+      service: 'WeatherNFT Guild Service',
+      database: isDbConnected ? 'connected' : 'disconnected',
+      stats: {
+        guilds_count: guildsCount,
+        total_members: membersCount,
+        active_rentals: rentalsCount
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 /**
@@ -105,16 +122,24 @@ app.get('/api/algorithms/:algorithmId', (req, res) => {
   }
 
   // Find guilds renting this algorithm
-  const rentingGuilds = Array.from(algorithmRentals.values())
-    .filter(rental => rental.algorithmId === algorithmId && rental.status === 'active')
-    .map(rental => guilds.get(rental.guildId))
-    .filter(Boolean);
+  const rentingGuildsData = await AlgorithmRental.find({
+    algorithmId,
+    status: 'active'
+  }).limit(5).lean();
+
+  const guildIds = rentingGuildsData.map(r => r.guildId);
+  const rentingGuilds = await Guild.find({ guildId: { $in: guildIds } }).lean();
+
+  const totalRenting = await AlgorithmRental.countDocuments({
+    algorithmId,
+    status: 'active'
+  });
 
   res.json({
     success: true,
     data: {
       ...algorithm,
-      renting_guilds_count: rentingGuilds.length,
+      renting_guilds_count: totalRenting,
       renting_guilds: rentingGuilds.slice(0, 5) // Top 5
     }
   });
@@ -124,7 +149,7 @@ app.get('/api/algorithms/:algorithmId', (req, res) => {
  * Create a new guild
  * POST /api/guilds/create
  */
-app.post('/api/guilds/create', (req, res) => {
+app.post('/api/guilds/create', async (req, res) => {
   try {
     const { name, description, founder, logo, algorithms } = req.body;
 
@@ -137,8 +162,8 @@ app.post('/api/guilds/create', (req, res) => {
 
     const guildId = `guild_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-    const guild = {
-      id: guildId,
+    const guildData = {
+      guildId: guildId,
       name: name,
       description: description || '',
       founder: founder, // Wallet address
@@ -147,29 +172,31 @@ app.post('/api/guilds/create', (req, res) => {
       rentedAlgorithms: algorithms || [],
       totalRevenue: 0,
       totalCaptures: 0,
-      createdAt: Date.now(),
       status: 'active'
     };
 
-    guilds.set(guildId, guild);
+    const guild = await Guild.create(guildData);
 
     // Add founder membership
-    const membershipId = `${guildId}_${founder}`;
-    memberships.set(membershipId, {
+    const membershipData = {
       guildId: guildId,
       userAddress: founder,
       role: 'founder',
-      joinedAt: Date.now(),
       captures: 0,
       revenue: 0
-    });
+    };
+
+    const membership = await GuildMembership.create(membershipData);
 
     console.log(`✅ Guild created: ${name} (${guildId})`);
 
     res.json({
       success: true,
       message: 'Guild created successfully',
-      data: guild
+      data: {
+        ...guild.toObject(),
+        membership: membership
+      }
     });
 
   } catch (error) {
@@ -185,68 +212,109 @@ app.post('/api/guilds/create', (req, res) => {
  * Get all guilds
  * GET /api/guilds
  */
-app.get('/api/guilds', (req, res) => {
-  const guildList = Array.from(guilds.values())
-    .map(guild => ({
+app.get('/api/guilds', async (req, res) => {
+  try {
+    const {
+      limit = 50,
+      offset = 0,
+      sortBy = 'totalRevenue',
+      sortOrder = 'desc'
+    } = req.query;
+
+    const sort = {};
+    sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+
+    const [guildList, total] = await Promise.all([
+      Guild.find()
+        .sort(sort)
+        .skip(parseInt(offset))
+        .limit(parseInt(limit))
+        .lean(),
+      Guild.countDocuments()
+    ]);
+
+    // Add member and algorithm counts
+    const enrichedGuilds = guildList.map(guild => ({
       ...guild,
       memberCount: guild.members.length,
       algorithmCount: guild.rentedAlgorithms.length
-    }))
-    .sort((a, b) => b.totalRevenue - a.totalRevenue);
+    }));
 
-  res.json({
-    success: true,
-    count: guildList.length,
-    data: guildList
-  });
+    res.json({
+      success: true,
+      count: enrichedGuilds.length,
+      total: total,
+      data: enrichedGuilds,
+      pagination: {
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        hasMore: (parseInt(offset) + enrichedGuilds.length) < total
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching guilds:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
 });
 
 /**
  * Get guild details
  * GET /api/guilds/:guildId
  */
-app.get('/api/guilds/:guildId', (req, res) => {
-  const { guildId } = req.params;
-  const guild = guilds.get(guildId);
+app.get('/api/guilds/:guildId', async (req, res) => {
+  try {
+    const { guildId } = req.params;
+    const guild = await Guild.findOne({ guildId }).lean();
 
-  if (!guild) {
-    return res.status(404).json({
+    if (!guild) {
+      return res.status(404).json({
+        success: false,
+        error: 'Guild not found'
+      });
+    }
+
+    // Get member details
+    const memberDetails = await GuildMembership.find({ guildId }).lean();
+
+    // Get rented algorithms details
+    const rentals = await AlgorithmRental.find({
+      guildId,
+      status: 'active'
+    }).lean();
+
+    const rentedAlgorithmsDetails = guild.rentedAlgorithms.map(algId => {
+      const rental = rentals.find(r => r.algorithmId === algId);
+      return {
+        ...AI_ALGORITHMS[algId],
+        rental: rental
+      };
+    }).filter(alg => alg.id); // Filter out algorithms that don't exist
+
+    res.json({
+      success: true,
+      data: {
+        ...guild,
+        members: memberDetails,
+        algorithms: rentedAlgorithmsDetails
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching guild:', error);
+    res.status(500).json({
       success: false,
-      error: 'Guild not found'
+      error: error.message
     });
   }
-
-  // Get member details
-  const memberDetails = guild.members.map(address => {
-    const membershipId = `${guildId}_${address}`;
-    return memberships.get(membershipId);
-  }).filter(Boolean);
-
-  // Get rented algorithms details
-  const rentedAlgorithmsDetails = guild.rentedAlgorithms.map(algId => {
-    const rental = Array.from(algorithmRentals.values())
-      .find(r => r.guildId === guildId && r.algorithmId === algId);
-    return {
-      ...AI_ALGORITHMS[algId],
-      rental: rental
-    };
-  }).filter(Boolean);
-
-  res.json({
-    success: true,
-    data: {
-      ...guild,
-      members: memberDetails,
-      algorithms: rentedAlgorithmsDetails
-    }
-  });
 });
 
 /**
  * Join a guild
  * POST /api/guilds/:guildId/join
  */
-app.post('/api/guilds/:guildId/join', (req, res) => {
+app.post('/api/guilds/:guildId/join', async (req, res) => {
   try {
     const { guildId } = req.params;
     const { userAddress } = req.body;
@@ -258,7 +326,7 @@ app.post('/api/guilds/:guildId/join', (req, res) => {
       });
     }
 
-    const guild = guilds.get(guildId);
+    const guild = await Guild.findOne({ guildId });
 
     if (!guild) {
       return res.status(404).json({
@@ -268,27 +336,28 @@ app.post('/api/guilds/:guildId/join', (req, res) => {
     }
 
     // Check if already a member
-    if (guild.members.includes(userAddress)) {
+    const existingMembership = await GuildMembership.findOne({ guildId, userAddress });
+    if (existingMembership) {
       return res.status(400).json({
         success: false,
         error: 'Already a member of this guild'
       });
     }
 
-    // Add member
+    // Add member to guild
     guild.members.push(userAddress);
-    guilds.set(guildId, guild);
+    await guild.save();
 
     // Create membership record
-    const membershipId = `${guildId}_${userAddress}`;
-    memberships.set(membershipId, {
+    const membershipData = {
       guildId: guildId,
       userAddress: userAddress,
       role: 'member',
-      joinedAt: Date.now(),
       captures: 0,
       revenue: 0
-    });
+    };
+
+    const membership = await GuildMembership.create(membershipData);
 
     console.log(`✅ ${userAddress} joined guild ${guild.name}`);
 
@@ -297,7 +366,7 @@ app.post('/api/guilds/:guildId/join', (req, res) => {
       message: 'Joined guild successfully',
       data: {
         guild: guild,
-        membership: memberships.get(membershipId)
+        membership: membership
       }
     });
 
@@ -314,7 +383,7 @@ app.post('/api/guilds/:guildId/join', (req, res) => {
  * Rent an algorithm for a guild
  * POST /api/guilds/:guildId/rent-algorithm
  */
-app.post('/api/guilds/:guildId/rent-algorithm', (req, res) => {
+app.post('/api/guilds/:guildId/rent-algorithm', async (req, res) => {
   try {
     const { guildId } = req.params;
     const { algorithmId, txHash } = req.body;
@@ -326,7 +395,7 @@ app.post('/api/guilds/:guildId/rent-algorithm', (req, res) => {
       });
     }
 
-    const guild = guilds.get(guildId);
+    const guild = await Guild.findOne({ guildId });
     const algorithm = AI_ALGORITHMS[algorithmId];
 
     if (!guild) {
@@ -338,7 +407,13 @@ app.post('/api/guilds/:guildId/rent-algorithm', (req, res) => {
     }
 
     // Check if already renting
-    if (guild.rentedAlgorithms.includes(algorithmId)) {
+    const existingRental = await AlgorithmRental.findOne({
+      guildId,
+      algorithmId,
+      status: 'active'
+    });
+
+    if (existingRental) {
       return res.status(400).json({
         success: false,
         error: 'Already renting this algorithm'
@@ -347,22 +422,27 @@ app.post('/api/guilds/:guildId/rent-algorithm', (req, res) => {
 
     // Create rental record
     const rentalId = `rental_${Date.now()}`;
-    const rental = {
-      id: rentalId,
+    const startDate = new Date();
+    const endDate = new Date(startDate.getTime() + (30 * 24 * 60 * 60 * 1000)); // 30 days
+
+    const rentalData = {
+      rentalId: rentalId,
       guildId: guildId,
       algorithmId: algorithmId,
-      startDate: Date.now(),
-      endDate: Date.now() + (30 * 24 * 60 * 60 * 1000), // 30 days
+      startDate: startDate,
+      endDate: endDate,
       monthlyPrice: algorithm.monthlyPrice,
       txHash: txHash || null,
       status: 'active'
     };
 
-    algorithmRentals.set(rentalId, rental);
+    const rental = await AlgorithmRental.create(rentalData);
 
     // Update guild
-    guild.rentedAlgorithms.push(algorithmId);
-    guilds.set(guildId, guild);
+    if (!guild.rentedAlgorithms.includes(algorithmId)) {
+      guild.rentedAlgorithms.push(algorithmId);
+      await guild.save();
+    }
 
     console.log(`✅ Guild ${guild.name} rented ${algorithm.name}`);
 
@@ -388,7 +468,7 @@ app.post('/api/guilds/:guildId/rent-algorithm', (req, res) => {
  * Record a capture and distribute revenue
  * POST /api/guilds/capture-event
  */
-app.post('/api/guilds/capture-event', (req, res) => {
+app.post('/api/guilds/capture-event', async (req, res) => {
   try {
     const { guildId, userAddress, algorithmId, eventId, capturePrice } = req.body;
 
@@ -399,13 +479,12 @@ app.post('/api/guilds/capture-event', (req, res) => {
       });
     }
 
-    const guild = guilds.get(guildId);
+    const guild = await Guild.findOne({ guildId });
     if (!guild) {
       return res.status(404).json({ success: false, error: 'Guild not found' });
     }
 
-    const membershipId = `${guildId}_${userAddress}`;
-    const membership = memberships.get(membershipId);
+    const membership = await GuildMembership.findOne({ guildId, userAddress });
 
     if (!membership) {
       return res.status(404).json({ success: false, error: 'Not a guild member' });
@@ -418,26 +497,27 @@ app.post('/api/guilds/capture-event', (req, res) => {
     // Update guild stats
     guild.totalRevenue += guildShare;
     guild.totalCaptures += 1;
-    guilds.set(guildId, guild);
+    await guild.save();
 
     // Update member stats
     membership.captures += 1;
     membership.revenue += userShare;
-    memberships.set(membershipId, membership);
+    await membership.save();
 
     // Record revenue share
     const shareId = `share_${Date.now()}`;
-    revenueShares.set(shareId, {
-      id: shareId,
+    const revenueShareData = {
+      shareId: shareId,
       guildId: guildId,
       userAddress: userAddress,
       algorithmId: algorithmId,
       eventId: eventId,
       capturePrice: capturePrice,
       guildShare: guildShare,
-      userShare: userShare,
-      timestamp: Date.now()
-    });
+      userShare: userShare
+    };
+
+    await RevenueShare.create(revenueShareData);
 
     console.log(`💰 Revenue distributed: ${guildShare} XTZ to guild, ${userShare} XTZ to user`);
 
@@ -465,91 +545,197 @@ app.post('/api/guilds/capture-event', (req, res) => {
  * Get user's guild memberships
  * GET /api/user/:userAddress/guilds
  */
-app.get('/api/user/:userAddress/guilds', (req, res) => {
-  const { userAddress } = req.params;
+app.get('/api/user/:userAddress/guilds', async (req, res) => {
+  try {
+    const { userAddress } = req.params;
 
-  const userMemberships = Array.from(memberships.values())
-    .filter(m => m.userAddress === userAddress)
-    .map(m => ({
-      ...m,
-      guild: guilds.get(m.guildId)
-    }))
-    .filter(m => m.guild);
+    const userMemberships = await GuildMembership.find({ userAddress }).lean();
 
-  res.json({
-    success: true,
-    count: userMemberships.length,
-    data: userMemberships
-  });
+    // Get guild details for each membership
+    const guildIds = userMemberships.map(m => m.guildId);
+    const guilds = await Guild.find({ guildId: { $in: guildIds } }).lean();
+
+    // Create a map for quick lookup
+    const guildMap = new Map(guilds.map(g => [g.guildId, g]));
+
+    const enrichedMemberships = userMemberships
+      .map(m => ({
+        ...m,
+        guild: guildMap.get(m.guildId)
+      }))
+      .filter(m => m.guild);
+
+    res.json({
+      success: true,
+      count: enrichedMemberships.length,
+      data: enrichedMemberships
+    });
+  } catch (error) {
+    console.error('Error fetching user guilds:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
 });
 
 /**
  * Get guild revenue history
  * GET /api/guilds/:guildId/revenue
  */
-app.get('/api/guilds/:guildId/revenue', (req, res) => {
-  const { guildId } = req.params;
+app.get('/api/guilds/:guildId/revenue', async (req, res) => {
+  try {
+    const { guildId } = req.params;
+    const { limit = 50, offset = 0 } = req.query;
 
-  const guildRevenue = Array.from(revenueShares.values())
-    .filter(share => share.guildId === guildId)
-    .sort((a, b) => b.timestamp - a.timestamp);
+    const [guildRevenue, totalCount] = await Promise.all([
+      RevenueShare.find({ guildId })
+        .sort({ timestamp: -1 })
+        .skip(parseInt(offset))
+        .limit(parseInt(limit))
+        .lean(),
+      RevenueShare.countDocuments({ guildId })
+    ]);
 
-  const totalRevenue = guildRevenue.reduce((sum, share) => sum + share.guildShare, 0);
+    const totalRevenue = guildRevenue.reduce((sum, share) => sum + share.guildShare, 0);
 
-  res.json({
-    success: true,
-    totalRevenue: totalRevenue,
-    transactionCount: guildRevenue.length,
-    data: guildRevenue
-  });
+    res.json({
+      success: true,
+      totalRevenue: totalRevenue,
+      transactionCount: totalCount,
+      data: guildRevenue,
+      pagination: {
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        hasMore: (parseInt(offset) + guildRevenue.length) < totalCount
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching guild revenue:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
 });
 
 /**
  * Get guild leaderboard
  * GET /api/leaderboard
  */
-app.get('/api/leaderboard', (req, res) => {
-  const leaderboard = Array.from(guilds.values())
-    .map(guild => ({
-      id: guild.id,
+app.get('/api/leaderboard', async (req, res) => {
+  try {
+    const { limit = 100, sortBy = 'totalRevenue' } = req.query;
+
+    const sort = {};
+    sort[sortBy] = -1; // Descending order
+
+    const leaderboard = await Guild.find()
+      .sort(sort)
+      .limit(parseInt(limit))
+      .lean();
+
+    const enrichedLeaderboard = leaderboard.map(guild => ({
+      id: guild.guildId,
       name: guild.name,
       totalRevenue: guild.totalRevenue,
       totalCaptures: guild.totalCaptures,
       memberCount: guild.members.length,
       algorithmCount: guild.rentedAlgorithms.length
-    }))
-    .sort((a, b) => b.totalRevenue - a.totalRevenue)
-    .slice(0, 100); // Top 100
+    }));
 
-  res.json({
-    success: true,
-    count: leaderboard.length,
-    data: leaderboard
-  });
+    res.json({
+      success: true,
+      count: enrichedLeaderboard.length,
+      data: enrichedLeaderboard
+    });
+  } catch (error) {
+    console.error('Error fetching leaderboard:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log('');
-  console.log('🏛️  WeatherNFT Guild Management Service');
-  console.log('=' .repeat(50));
-  console.log(`✅ Server running on http://localhost:${PORT}`);
-  console.log(`🎯 Available Algorithms: ${Object.keys(AI_ALGORITHMS).length}`);
-  console.log('');
-  console.log('📊 Endpoints:');
-  console.log('   • GET  /health                         - Health check');
-  console.log('   • GET  /api/algorithms                 - List all algorithms');
-  console.log('   • GET  /api/algorithms/:id             - Algorithm details');
-  console.log('   • POST /api/guilds/create              - Create new guild');
-  console.log('   • GET  /api/guilds                     - List all guilds');
-  console.log('   • GET  /api/guilds/:id                 - Guild details');
-  console.log('   • POST /api/guilds/:id/join            - Join guild');
-  console.log('   • POST /api/guilds/:id/rent-algorithm  - Rent algorithm');
-  console.log('   • POST /api/guilds/capture-event       - Record capture');
-  console.log('   • GET  /api/user/:address/guilds       - User memberships');
-  console.log('   • GET  /api/guilds/:id/revenue         - Revenue history');
-  console.log('   • GET  /api/leaderboard                - Guild leaderboard');
-  console.log('');
+// Start server with database connection
+async function startServer() {
+  try {
+    console.log('');
+    console.log('🏛️  WeatherNFT Guild Management Service');
+    console.log('='.repeat(50));
+
+    // Connect to MongoDB
+    console.log('📊 Connecting to MongoDB...');
+    await db.connect();
+    console.log('✅ MongoDB connected');
+
+    // Initialize indexes
+    console.log('📝 Initializing database indexes...');
+    await Promise.all([
+      Guild.createIndexes(),
+      GuildMembership.createIndexes(),
+      AlgorithmRental.createIndexes(),
+      RevenueShare.createIndexes()
+    ]);
+    console.log('✅ Database indexes initialized');
+
+    // Start Express server
+    app.listen(PORT, () => {
+      console.log(`✅ Server running on http://localhost:${PORT}`);
+      console.log(`🎯 Available Algorithms: ${Object.keys(AI_ALGORITHMS).length}`);
+      console.log('');
+      console.log('📊 Endpoints:');
+      console.log('   • GET  /health                         - Health check');
+      console.log('   • GET  /api/algorithms                 - List all algorithms');
+      console.log('   • GET  /api/algorithms/:id             - Algorithm details');
+      console.log('   • POST /api/guilds/create              - Create new guild');
+      console.log('   • GET  /api/guilds                     - List all guilds');
+      console.log('   • GET  /api/guilds/:id                 - Guild details');
+      console.log('   • POST /api/guilds/:id/join            - Join guild');
+      console.log('   • POST /api/guilds/:id/rent-algorithm  - Rent algorithm');
+      console.log('   • POST /api/guilds/capture-event       - Record capture');
+      console.log('   • GET  /api/user/:address/guilds       - User memberships');
+      console.log('   • GET  /api/guilds/:id/revenue         - Revenue history');
+      console.log('   • GET  /api/leaderboard                - Guild leaderboard');
+      console.log('');
+      console.log('✅ Ready to manage guilds!');
+      console.log('📦 MongoDB collections ready: Guild, GuildMembership, AlgorithmRental, RevenueShare');
+      console.log('');
+    });
+
+  } catch (error) {
+    console.error('❌ Failed to start guild service:', error);
+    process.exit(1);
+  }
+}
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  console.log('\n⚠️  Shutting down guild service...');
+  try {
+    await db.disconnect();
+    console.log('✅ Database connection closed');
+    process.exit(0);
+  } catch (error) {
+    console.error('❌ Error during shutdown:', error);
+    process.exit(1);
+  }
 });
+
+process.on('SIGTERM', async () => {
+  console.log('\n⚠️  Received SIGTERM signal...');
+  try {
+    await db.disconnect();
+    console.log('✅ Database connection closed');
+    process.exit(0);
+  } catch (error) {
+    console.error('❌ Error during shutdown:', error);
+    process.exit(1);
+  }
+});
+
+// Start the server
+startServer();
 
 module.exports = app;

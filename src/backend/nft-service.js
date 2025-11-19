@@ -11,6 +11,8 @@ const cors = require('cors');
 const multer = require('multer');
 const IPFSService = require('./ipfs-service');
 const AIArtGenerator = require('./ai-art-generator');
+const DatabaseService = require('./database');
+const { NFT } = require('./models');
 
 const app = express();
 const PORT = process.env.NFT_SERVICE_PORT || 3009;
@@ -31,19 +33,35 @@ const artGenerator = new AIArtGenerator({
   useRealSD: process.env.USE_REAL_AI === 'true'
 });
 
-// In-memory storage for NFT minting queue
-const mintingQueue = new Map();
+// Initialize database
+const db = new DatabaseService();
 
 // Health check
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'OK',
-    service: 'WeatherNFT NFT Service',
-    ipfs_provider: ipfsService.config.provider,
-    ai_art_enabled: artGenerator.config.useRealSD,
-    queue_size: mintingQueue.size,
-    timestamp: new Date().toISOString()
-  });
+app.get('/health', async (req, res) => {
+  try {
+    const isDbConnected = await db.healthCheck();
+    const nftCount = await NFT.countDocuments();
+    const pendingMints = await NFT.countDocuments({ status: 'pending_mint' });
+
+    res.json({
+      status: 'OK',
+      service: 'WeatherNFT NFT Service',
+      database: isDbConnected ? 'connected' : 'disconnected',
+      ipfs_provider: ipfsService.config.provider,
+      ai_art_enabled: artGenerator.config.useRealSD,
+      stats: {
+        total_nfts: nftCount,
+        pending_mints: pendingMints
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // Test IPFS connection
@@ -172,9 +190,9 @@ app.post('/api/nft/create-with-art', async (req, res) => {
     const metadataUpload = await ipfsService.uploadMetadata(metadata);
     console.log(`✅ Metadata uploaded: ${metadataUpload.hash}`);
 
-    // Step 5: Add to minting queue
+    // Step 5: Save to database
     const nftData = {
-      id: eventId,
+      eventId: eventId,
       owner: owner || 'pending',
       imageHash: imageUpload.hash,
       imageUrl: imageUpload.url,
@@ -182,11 +200,14 @@ app.post('/api/nft/create-with-art', async (req, res) => {
       metadataUrl: metadataUpload.url,
       metadata: metadata,
       status: 'pending_mint',
-      createdAt: Date.now()
+      rarity: rarity || 'common',
+      algorithm: algorithm || 'Unknown',
+      weatherData: weatherData,
+      location: location || { city: 'Unknown', country: 'Unknown', lat: 0, lng: 0 }
     };
 
-    mintingQueue.set(eventId, nftData);
-    console.log(`✅ NFT ${eventId} ready for minting`);
+    const nft = await NFT.create(nftData);
+    console.log(`✅ NFT ${eventId} saved to database and ready for minting`);
 
     res.json({
       success: true,
@@ -276,9 +297,9 @@ app.post('/api/nft/create', async (req, res) => {
     const metadataUpload = await ipfsService.uploadMetadata(metadata);
     console.log(`✅ Metadata uploaded: ${metadataUpload.hash}`);
 
-    // Step 4: Add to minting queue
+    // Step 4: Save to database
     const nftData = {
-      id: eventId,
+      eventId: eventId,
       owner: owner,
       imageHash: imageUpload.hash,
       imageUrl: imageUpload.url,
@@ -286,11 +307,14 @@ app.post('/api/nft/create', async (req, res) => {
       metadataUrl: metadataUpload.url,
       metadata: metadata,
       status: 'pending_mint',
-      createdAt: Date.now()
+      rarity: rarity || 'common',
+      algorithm: algorithm || 'Unknown',
+      weatherData: weatherData,
+      location: location || { city: 'Unknown', country: 'Unknown', lat: 0, lng: 0 }
     };
 
-    mintingQueue.set(eventId, nftData);
-    console.log(`✅ NFT ${eventId} ready for minting`);
+    const nft = await NFT.create(nftData);
+    console.log(`✅ NFT ${eventId} saved to database and ready for minting`);
 
     res.json({
       success: true,
@@ -387,71 +411,134 @@ app.post('/api/ipfs/upload/metadata', async (req, res) => {
 });
 
 /**
- * Get NFT from minting queue
+ * Get NFT by event ID
  * GET /api/nft/:eventId
  */
-app.get('/api/nft/:eventId', (req, res) => {
-  const { eventId } = req.params;
+app.get('/api/nft/:eventId', async (req, res) => {
+  try {
+    const { eventId } = req.params;
 
-  const nft = mintingQueue.get(eventId);
+    const nft = await NFT.findOne({ eventId }).lean();
 
-  if (!nft) {
-    return res.status(404).json({
+    if (!nft) {
+      return res.status(404).json({
+        success: false,
+        error: 'NFT not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: nft
+    });
+  } catch (error) {
+    console.error('Error fetching NFT:', error);
+    res.status(500).json({
       success: false,
-      error: 'NFT not found in queue'
+      error: error.message
     });
   }
-
-  res.json({
-    success: true,
-    data: nft
-  });
 });
 
 /**
- * Get all NFTs in minting queue
+ * Get all NFTs with filtering and pagination
  * GET /api/nfts
  */
-app.get('/api/nfts', (req, res) => {
-  const nfts = Array.from(mintingQueue.values());
+app.get('/api/nfts', async (req, res) => {
+  try {
+    const {
+      status,
+      owner,
+      rarity,
+      algorithm,
+      limit = 50,
+      offset = 0,
+      sortBy = 'createdAt',
+      sortOrder = 'desc'
+    } = req.query;
 
-  res.json({
-    success: true,
-    count: nfts.length,
-    data: nfts
-  });
+    // Build query
+    const query = {};
+    if (status) query.status = status;
+    if (owner) query.owner = owner;
+    if (rarity) query.rarity = rarity;
+    if (algorithm) query.algorithm = algorithm;
+
+    // Build sort
+    const sort = {};
+    sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+
+    // Execute query with pagination
+    const [nfts, total] = await Promise.all([
+      NFT.find(query)
+        .sort(sort)
+        .skip(parseInt(offset))
+        .limit(parseInt(limit))
+        .lean(),
+      NFT.countDocuments(query)
+    ]);
+
+    res.json({
+      success: true,
+      count: nfts.length,
+      total: total,
+      data: nfts,
+      pagination: {
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        hasMore: (parseInt(offset) + nfts.length) < total
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching NFTs:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
 });
 
 /**
  * Update NFT status (after blockchain minting)
  * PUT /api/nft/:eventId/status
- * Body: { status: string, txHash?: string }
+ * Body: { status: string, txHash?: string, tokenId?: string }
  */
-app.put('/api/nft/:eventId/status', (req, res) => {
-  const { eventId } = req.params;
-  const { status, txHash, tokenId } = req.body;
+app.put('/api/nft/:eventId/status', async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const { status, txHash, tokenId } = req.body;
 
-  const nft = mintingQueue.get(eventId);
+    const updateData = { status };
+    if (txHash) updateData.txHash = txHash;
+    if (tokenId) updateData.tokenId = tokenId;
 
-  if (!nft) {
-    return res.status(404).json({
+    const nft = await NFT.findOneAndUpdate(
+      { eventId },
+      { $set: updateData },
+      { new: true }
+    );
+
+    if (!nft) {
+      return res.status(404).json({
+        success: false,
+        error: 'NFT not found'
+      });
+    }
+
+    console.log(`✅ NFT ${eventId} status updated to ${status}`);
+
+    res.json({
+      success: true,
+      message: 'NFT status updated',
+      data: nft
+    });
+  } catch (error) {
+    console.error('Error updating NFT status:', error);
+    res.status(500).json({
       success: false,
-      error: 'NFT not found'
+      error: error.message
     });
   }
-
-  nft.status = status;
-  if (txHash) nft.txHash = txHash;
-  if (tokenId) nft.tokenId = tokenId;
-  nft.updatedAt = Date.now();
-
-  mintingQueue.set(eventId, nft);
-
-  res.json({
-    success: true,
-    message: 'NFT status updated',
-    data: nft
-  });
 });
 
 /**
@@ -494,25 +581,79 @@ app.post('/api/metadata/preview', (req, res) => {
   }
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log('');
-  console.log('🎨 WeatherNFT NFT Service');
-  console.log('=' .repeat(50));
-  console.log(`✅ Server running on http://localhost:${PORT}`);
-  console.log(`📦 IPFS Provider: ${ipfsService.config.provider}`);
-  console.log('');
-  console.log('📊 Endpoints:');
-  console.log('   • GET  /health                    - Health check');
-  console.log('   • GET  /api/ipfs/test             - Test IPFS connection');
-  console.log('   • POST /api/nft/create            - Create complete NFT');
-  console.log('   • POST /api/ipfs/upload/image     - Upload image to IPFS');
-  console.log('   • POST /api/ipfs/upload/metadata  - Upload metadata to IPFS');
-  console.log('   • GET  /api/nft/:eventId          - Get NFT from queue');
-  console.log('   • GET  /api/nfts                  - Get all NFTs');
-  console.log('   • PUT  /api/nft/:eventId/status   - Update NFT status');
-  console.log('   • POST /api/metadata/preview      - Preview metadata');
-  console.log('');
+// Start server with database connection
+async function startServer() {
+  try {
+    console.log('');
+    console.log('🎨 WeatherNFT NFT Service');
+    console.log('='.repeat(50));
+
+    // Connect to MongoDB
+    console.log('📊 Connecting to MongoDB...');
+    await db.connect();
+    console.log('✅ MongoDB connected');
+
+    // Initialize indexes
+    console.log('📝 Initializing database indexes...');
+    await NFT.createIndexes();
+    console.log('✅ Database indexes initialized');
+
+    // Start Express server
+    app.listen(PORT, () => {
+      console.log(`✅ Server running on http://localhost:${PORT}`);
+      console.log(`📦 IPFS Provider: ${ipfsService.config.provider}`);
+      console.log(`🤖 AI Art: ${artGenerator.config.useRealSD ? 'Enabled' : 'Mock Mode'}`);
+      console.log('');
+      console.log('📊 Endpoints:');
+      console.log('   • GET  /health                    - Health check');
+      console.log('   • GET  /api/ipfs/test             - Test IPFS connection');
+      console.log('   • POST /api/nft/create-with-art   - Create NFT with AI art');
+      console.log('   • POST /api/nft/create            - Create complete NFT');
+      console.log('   • POST /api/art/generate          - Generate AI art only');
+      console.log('   • POST /api/ipfs/upload/image     - Upload image to IPFS');
+      console.log('   • POST /api/ipfs/upload/metadata  - Upload metadata to IPFS');
+      console.log('   • GET  /api/nft/:eventId          - Get NFT by event ID');
+      console.log('   • GET  /api/nfts                  - Get all NFTs (with filters)');
+      console.log('   • PUT  /api/nft/:eventId/status   - Update NFT status');
+      console.log('   • POST /api/metadata/preview      - Preview metadata');
+      console.log('');
+      console.log('✅ Ready to mint NFTs!');
+      console.log('📦 MongoDB collection ready: NFT');
+      console.log('');
+    });
+
+  } catch (error) {
+    console.error('❌ Failed to start NFT service:', error);
+    process.exit(1);
+  }
+}
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  console.log('\n⚠️  Shutting down NFT service...');
+  try {
+    await db.disconnect();
+    console.log('✅ Database connection closed');
+    process.exit(0);
+  } catch (error) {
+    console.error('❌ Error during shutdown:', error);
+    process.exit(1);
+  }
 });
+
+process.on('SIGTERM', async () => {
+  console.log('\n⚠️  Received SIGTERM signal...');
+  try {
+    await db.disconnect();
+    console.log('✅ Database connection closed');
+    process.exit(0);
+  } catch (error) {
+    console.error('❌ Error during shutdown:', error);
+    process.exit(1);
+  }
+});
+
+// Start the server
+startServer();
 
 module.exports = app;

@@ -766,6 +766,49 @@ marketplaceTransactionSchema.index({ buyer: 1, timestamp: -1 });
 marketplaceTransactionSchema.index({ nftId: 1, timestamp: -1 });
 marketplaceTransactionSchema.index({ type: 1, timestamp: -1 });
 
+// Guild Membership Schema (for tracking member stats per guild)
+const guildMembershipSchema = new mongoose.Schema({
+  guildId: {
+    type: String,
+    required: true,
+    index: true
+  },
+  userAddress: {
+    type: String,
+    required: true,
+    index: true
+  },
+  role: {
+    type: String,
+    enum: ['founder', 'admin', 'member'],
+    default: 'member',
+    index: true
+  },
+  captures: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  revenue: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  joinedAt: {
+    type: Date,
+    default: Date.now,
+    index: true
+  }
+}, {
+  timestamps: true
+});
+
+// Indexes
+guildMembershipSchema.index({ guildId: 1, userAddress: 1 }, { unique: true });
+guildMembershipSchema.index({ userAddress: 1, joinedAt: -1 });
+guildMembershipSchema.index({ captures: -1 });
+guildMembershipSchema.index({ revenue: -1 });
+
 // Create models
 const Guild = mongoose.model('Guild', guildSchema);
 const NFT = mongoose.model('NFT', nftSchema);
@@ -778,6 +821,7 @@ const Analytics = mongoose.model('Analytics', analyticsSchema);
 const Listing = mongoose.model('Listing', listingSchema);
 const Offer = mongoose.model('Offer', offerSchema);
 const MarketplaceTransaction = mongoose.model('MarketplaceTransaction', marketplaceTransactionSchema);
+const GuildMembership = mongoose.model('GuildMembership', guildMembershipSchema);
 
 module.exports = {
   Guild,
@@ -790,5 +834,6 @@ module.exports = {
   Analytics,
   Listing,
   Offer,
-  MarketplaceTransaction
+  MarketplaceTransaction,
+  GuildMembership
 };
