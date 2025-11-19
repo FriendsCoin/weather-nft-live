@@ -14,6 +14,14 @@ const AIArtGenerator = require('./ai-art-generator');
 const DatabaseService = require('./database');
 const { NFT } = require('./models');
 const { authenticateToken } = require('./middleware/auth');
+const {
+  securityHeaders,
+  generalLimiter,
+  createLimiter,
+  expensiveLimiter,
+  corsOptions
+} = require('./middleware/security');
+const { requestLogger, errorLogger } = require('./middleware/logger');
 
 const app = express();
 const PORT = process.env.NFT_SERVICE_PORT || 3009;
@@ -21,8 +29,12 @@ const PORT = process.env.NFT_SERVICE_PORT || 3009;
 // Configure multer for memory storage
 const upload = multer({ storage: multer.memoryStorage() });
 
-app.use(cors());
+// Security middleware
+app.use(securityHeaders());
+app.use(cors(corsOptions()));
 app.use(express.json({ limit: '50mb' })); // Increase limit for base64 images
+app.use(requestLogger);
+app.use(generalLimiter);
 
 // Initialize services
 const ipfsService = new IPFSService({
@@ -85,8 +97,9 @@ app.get('/api/ipfs/test', async (req, res) => {
 /**
  * Generate AI art from weather data
  * POST /api/art/generate
+ * Rate limited: 10 AI generations per hour
  */
-app.post('/api/art/generate', async (req, res) => {
+app.post('/api/art/generate', expensiveLimiter, async (req, res) => {
   try {
     const { weatherData, eventData, location, rarity } = req.body;
 
@@ -132,8 +145,9 @@ app.post('/api/art/generate', async (req, res) => {
  * Create complete NFT with AI art generation (PROTECTED)
  * POST /api/nft/create-with-art
  * Generates art automatically from weather data
+ * Rate limited: 10 AI generations per hour
  */
-app.post('/api/nft/create-with-art', authenticateToken, async (req, res) => {
+app.post('/api/nft/create-with-art', authenticateToken, expensiveLimiter, async (req, res) => {
   try {
     const {
       eventId,
@@ -245,8 +259,9 @@ app.post('/api/nft/create-with-art', authenticateToken, async (req, res) => {
  *   location: object,
  *   imageBase64: base64 string
  * }
+ * Rate limited: 20 creations per hour
  */
-app.post('/api/nft/create', authenticateToken, async (req, res) => {
+app.post('/api/nft/create', authenticateToken, createLimiter, async (req, res) => {
   try {
     const {
       eventId,
@@ -584,6 +599,9 @@ app.post('/api/metadata/preview', (req, res) => {
     });
   }
 });
+
+// Error logger middleware (must be after routes)
+app.use(errorLogger);
 
 // Start server with database connection
 async function startServer() {

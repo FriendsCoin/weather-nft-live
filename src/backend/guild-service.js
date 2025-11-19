@@ -11,12 +11,23 @@ const cors = require('cors');
 const DatabaseService = require('./database');
 const { Guild, GuildMembership, AlgorithmRental, RevenueShare } = require('./models');
 const { authenticateToken } = require('./middleware/auth');
+const {
+  securityHeaders,
+  generalLimiter,
+  createLimiter,
+  corsOptions
+} = require('./middleware/security');
+const { requestLogger, errorLogger } = require('./middleware/logger');
 
 const app = express();
 const PORT = process.env.GUILD_SERVICE_PORT || 3010;
 
-app.use(cors());
+// Security middleware
+app.use(securityHeaders());
+app.use(cors(corsOptions()));
 app.use(express.json());
+app.use(requestLogger);
+app.use(generalLimiter);
 
 // Initialize database
 const db = new DatabaseService();
@@ -156,8 +167,9 @@ app.get('/api/algorithms/:algorithmId', async (req, res) => {
 /**
  * Create a new guild (PROTECTED)
  * POST /api/guilds/create
+ * Rate limited: 20 creations per hour
  */
-app.post('/api/guilds/create', authenticateToken, async (req, res) => {
+app.post('/api/guilds/create', authenticateToken, createLimiter, async (req, res) => {
   try {
     const { name, description, logo, algorithms } = req.body;
 
@@ -665,6 +677,9 @@ app.get('/api/leaderboard', async (req, res) => {
     });
   }
 });
+
+// Error logger middleware (must be after routes)
+app.use(errorLogger);
 
 // Start server with database connection
 async function startServer() {

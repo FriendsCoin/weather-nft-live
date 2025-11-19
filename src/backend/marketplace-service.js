@@ -23,6 +23,13 @@ const axios = require('axios');
 const DatabaseService = require('./database');
 const { Listing, Offer, MarketplaceTransaction } = require('./models');
 const { authenticateToken, verifyWalletOwnership } = require('./middleware/auth');
+const {
+  securityHeaders,
+  generalLimiter,
+  createLimiter,
+  corsOptions
+} = require('./middleware/security');
+const { requestLogger, errorLogger } = require('./middleware/logger');
 
 const app = express();
 const PORT = process.env.MARKETPLACE_PORT || 3013;
@@ -30,9 +37,12 @@ const PORT = process.env.MARKETPLACE_PORT || 3013;
 // Initialize database
 const db = new DatabaseService();
 
-// Middleware
-app.use(cors());
+// Security middleware
+app.use(securityHeaders());
+app.use(cors(corsOptions()));
 app.use(express.json());
+app.use(requestLogger);
+app.use(generalLimiter);
 
 // Service URLs
 const SERVICES = {
@@ -73,8 +83,9 @@ const TRANSACTION_TYPE = {
 /**
  * Create NFT listing (PROTECTED)
  * POST /api/marketplace/listings
+ * Rate limited: 20 creations per hour
  */
-app.post('/api/marketplace/listings', authenticateToken, async (req, res) => {
+app.post('/api/marketplace/listings', authenticateToken, createLimiter, async (req, res) => {
   try {
     const {
       nftId,
@@ -998,6 +1009,9 @@ async function broadcastToWebSocket(channel, event, data) {
     console.log('WebSocket broadcast failed (service may not be running)');
   }
 }
+
+// Error logger middleware (must be after routes)
+app.use(errorLogger);
 
 // ============================================
 // HEALTH CHECK

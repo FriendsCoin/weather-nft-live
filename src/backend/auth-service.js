@@ -19,6 +19,11 @@ const {
   corsOptions
 } = require('./middleware/security');
 const { requestLogger, errorLogger, logAuthEvent } = require('./middleware/logger');
+const {
+  generateChallengeMessage,
+  verifyWalletSignature,
+  verifyTimestamp
+} = require('./middleware/walletVerification');
 
 const app = express();
 const PORT = process.env.AUTH_SERVICE_PORT || 3014;
@@ -32,6 +37,33 @@ app.use(generalLimiter); // Rate limit all routes
 
 // Initialize database
 const db = new DatabaseService();
+
+/**
+ * Get challenge message for wallet signing
+ * GET /api/auth/challenge/:walletAddress
+ * Returns a message to sign for authentication
+ */
+app.get('/api/auth/challenge/:walletAddress', (req, res) => {
+  const { walletAddress } = req.params;
+  const timestamp = Date.now();
+
+  if (!walletAddress) {
+    return res.status(400).json({
+      success: false,
+      error: 'Wallet address is required'
+    });
+  }
+
+  const message = generateChallengeMessage(walletAddress, timestamp);
+
+  res.json({
+    success: true,
+    message,
+    timestamp,
+    expiresIn: '5 minutes',
+    instructions: 'Sign this message with your wallet to authenticate'
+  });
+});
 
 /**
  * Health check
@@ -148,7 +180,7 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
  */
 app.post('/api/auth/login', authLimiter, async (req, res) => {
   try {
-    const { walletAddress, password, signature } = req.body;
+    const { walletAddress, password, signature, timestamp } = req.body;
 
     if (!walletAddress) {
       return res.status(400).json({
@@ -170,6 +202,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     if (password && user.password) {
       const validPassword = await bcrypt.compare(password, user.password);
       if (!validPassword) {
+        logAuthEvent('login', walletAddress, false, { reason: 'invalid_password' });
         return res.status(401).json({
           success: false,
           error: 'Invalid password'
@@ -177,8 +210,49 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
       }
     }
 
-    // TODO: Verify wallet signature in production
-    // For now, we trust the wallet address
+    // Verify wallet signature if provided (recommended for production)
+    if (signature && timestamp) {
+      // Verify timestamp first (prevent replay attacks)
+      if (!verifyTimestamp(timestamp)) {
+        logAuthEvent('login', walletAddress, false, { reason: 'expired_timestamp' });
+        return res.status(401).json({
+          success: false,
+          error: 'Challenge expired. Please request a new challenge.'
+        });
+      }
+
+      // Generate expected message
+      const message = generateChallengeMessage(walletAddress, timestamp);
+
+      // Verify signature
+      const verification = verifyWalletSignature(message, signature, walletAddress);
+
+      if (!verification.valid) {
+        logAuthEvent('login', walletAddress, false, {
+          reason: 'invalid_signature',
+          walletType: verification.walletType,
+          error: verification.error
+        });
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid wallet signature',
+          details: verification.error
+        });
+      }
+
+      // Signature verified successfully
+      logAuthEvent('login', walletAddress, true, {
+        method: 'wallet_signature',
+        walletType: verification.walletType
+      });
+    } else if (!password) {
+      // No password and no signature - not secure!
+      logAuthEvent('login', walletAddress, false, { reason: 'no_authentication' });
+      return res.status(400).json({
+        success: false,
+        error: 'Please provide either password or wallet signature for authentication'
+      });
+    }
 
     // Update last active
     user.lastActive = new Date();
@@ -314,15 +388,17 @@ async function startServer() {
       console.log(`✅ Server running on http://localhost:${PORT}`);
       console.log('');
       console.log('📊 Endpoints:');
-      console.log('   • GET  /health              - Health check');
-      console.log('   • POST /api/auth/register   - Register new user');
-      console.log('   • POST /api/auth/login      - Login user');
-      console.log('   • GET  /api/auth/me         - Get current user (protected)');
-      console.log('   • POST /api/auth/verify     - Verify token (protected)');
-      console.log('   • POST /api/auth/refresh    - Refresh token (protected)');
+      console.log('   • GET  /health                          - Health check');
+      console.log('   • GET  /api/auth/challenge/:wallet      - Get challenge for wallet signing');
+      console.log('   • POST /api/auth/register               - Register new user');
+      console.log('   • POST /api/auth/login                  - Login (password or wallet signature)');
+      console.log('   • GET  /api/auth/me                     - Get current user (protected)');
+      console.log('   • POST /api/auth/verify                 - Verify token (protected)');
+      console.log('   • POST /api/auth/refresh                - Refresh token (protected)');
       console.log('');
       console.log('✅ Ready to authenticate users!');
       console.log('📦 MongoDB collection ready: User');
+      console.log('🔐 Wallet signature verification: Tezos & Ethereum supported');
       console.log('');
     });
 
