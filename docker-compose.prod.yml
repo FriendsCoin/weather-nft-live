@@ -1,0 +1,439 @@
+# WeatherNFT Docker Compose - Production Environment
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:6.0
+    container_name: weathernft-mongodb-prod
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: weathernft
+    volumes:
+      - /var/lib/weathernft/mongodb:/data/db
+      - /var/lib/weathernft/mongodb-config:/data/configdb
+      - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - weathernft-internal
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/weathernft --quiet
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: weathernft-redis-prod
+    restart: always
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes --maxmemory 2gb --maxmemory-policy allkeys-lru
+    volumes:
+      - /var/lib/weathernft/redis:/data
+    networks:
+      - weathernft-internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+
+  # Authentication Service
+  auth-service:
+    image: ${REGISTRY:-weathernft}/auth-service:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: weathernft-auth-prod
+    restart: always
+    command: node src/backend/auth-service.js
+    environment:
+      NODE_ENV: production
+      AUTH_SERVICE_PORT: 3014
+      MONGODB_URI: mongodb://weathernft_app:${MONGO_APP_PASSWORD}@mongodb:27017/weathernft?authSource=weathernft
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-24h}
+      SESSION_SECRET: ${SESSION_SECRET}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVICE_NAME: auth-service
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - weathernft-internal
+      - weathernft-public
+    volumes:
+      - /var/log/weathernft:/app/logs
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3014/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # NFT Service
+  nft-service:
+    image: ${REGISTRY:-weathernft}/nft-service:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: weathernft-nft-prod
+    restart: always
+    command: node src/backend/nft-service.js
+    environment:
+      NODE_ENV: production
+      NFT_SERVICE_PORT: 3009
+      MONGODB_URI: mongodb://weathernft_app:${MONGO_APP_PASSWORD}@mongodb:27017/weathernft?authSource=weathernft
+      JWT_SECRET: ${JWT_SECRET}
+      IPFS_PROVIDER: ${IPFS_PROVIDER}
+      PINATA_API_KEY: ${PINATA_API_KEY}
+      PINATA_SECRET_KEY: ${PINATA_SECRET_KEY}
+      SD_AI_URL: ${SD_AI_URL}
+      USE_REAL_AI: ${USE_REAL_AI:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVICE_NAME: nft-service
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+    networks:
+      - weathernft-internal
+      - weathernft-public
+    volumes:
+      - /var/log/weathernft:/app/logs
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3009/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # Marketplace Service
+  marketplace-service:
+    image: ${REGISTRY:-weathernft}/marketplace-service:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: weathernft-marketplace-prod
+    restart: always
+    command: node src/backend/marketplace-service.js
+    environment:
+      NODE_ENV: production
+      MARKETPLACE_PORT: 3013
+      MONGODB_URI: mongodb://weathernft_app:${MONGO_APP_PASSWORD}@mongodb:27017/weathernft?authSource=weathernft
+      JWT_SECRET: ${JWT_SECRET}
+      NFT_SERVICE_PORT: 3009
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVICE_NAME: marketplace-service
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      nft-service:
+        condition: service_healthy
+    networks:
+      - weathernft-internal
+      - weathernft-public
+    volumes:
+      - /var/log/weathernft:/app/logs
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3013/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # Guild Service
+  guild-service:
+    image: ${REGISTRY:-weathernft}/guild-service:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: weathernft-guild-prod
+    restart: always
+    command: node src/backend/guild-service.js
+    environment:
+      NODE_ENV: production
+      GUILD_SERVICE_PORT: 3010
+      MONGODB_URI: mongodb://weathernft_app:${MONGO_APP_PASSWORD}@mongodb:27017/weathernft?authSource=weathernft
+      JWT_SECRET: ${JWT_SECRET}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVICE_NAME: guild-service
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - weathernft-internal
+      - weathernft-public
+    volumes:
+      - /var/log/weathernft:/app/logs
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3010/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # Analytics Service
+  analytics-service:
+    image: ${REGISTRY:-weathernft}/analytics-service:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: weathernft-analytics-prod
+    restart: always
+    command: node src/backend/analytics-service.js
+    environment:
+      NODE_ENV: production
+      ANALYTICS_PORT: 3011
+      MONGODB_URI: mongodb://weathernft_app:${MONGO_APP_PASSWORD}@mongodb:27017/weathernft?authSource=weathernft
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVICE_NAME: analytics-service
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - weathernft-internal
+      - weathernft-public
+    volumes:
+      - /var/log/weathernft:/app/logs
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3011/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # Weather API Service
+  weather-service:
+    image: ${REGISTRY:-weathernft}/weather-service:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: weathernft-weather-prod
+    restart: always
+    command: node src/backend/weather-api-service.js
+    environment:
+      NODE_ENV: production
+      WEATHER_API_PORT: 3012
+      MONGODB_URI: mongodb://weathernft_app:${MONGO_APP_PASSWORD}@mongodb:27017/weathernft?authSource=weathernft
+      OPENWEATHER_API_KEY: ${OPENWEATHER_API_KEY}
+      WEATHERAPI_KEY: ${WEATHERAPI_KEY}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVICE_NAME: weather-service
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - weathernft-internal
+      - weathernft-public
+    volumes:
+      - /var/log/weathernft:/app/logs
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3012/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # WebSocket Service
+  websocket-service:
+    image: ${REGISTRY:-weathernft}/websocket-service:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: weathernft-websocket-prod
+    restart: always
+    command: node src/backend/websocket-service.js
+    environment:
+      NODE_ENV: production
+      WEBSOCKET_PORT: 8080
+      MONGODB_URI: mongodb://weathernft_app:${MONGO_APP_PASSWORD}@mongodb:27017/weathernft?authSource=weathernft
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVICE_NAME: websocket-service
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - weathernft-internal
+      - weathernft-public
+    volumes:
+      - /var/log/weathernft:/app/logs
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # Frontend Service
+  frontend:
+    image: ${REGISTRY:-weathernft}/frontend:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: weathernft-frontend-prod
+    restart: always
+    command: node src/frontend/simple-frontend-server.js
+    environment:
+      NODE_ENV: production
+      PORT: 8081
+      AUTH_SERVICE_PORT: 3014
+      NFT_SERVICE_PORT: 3009
+      MARKETPLACE_PORT: 3013
+      GUILD_SERVICE_PORT: 3010
+      ANALYTICS_PORT: 3011
+      WEATHER_API_PORT: 3012
+      WEBSOCKET_PORT: 8080
+    depends_on:
+      - auth-service
+      - nft-service
+      - marketplace-service
+      - guild-service
+      - analytics-service
+      - weather-service
+      - websocket-service
+    networks:
+      - weathernft-internal
+      - weathernft-public
+    volumes:
+      - /var/log/weathernft:/app/logs
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: weathernft-nginx-prod
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/log/nginx:/var/log/nginx
+    depends_on:
+      - frontend
+      - auth-service
+      - nft-service
+      - marketplace-service
+      - guild-service
+      - analytics-service
+      - weather-service
+      - websocket-service
+    networks:
+      - weathernft-public
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+# Networks
+networks:
+  weathernft-internal:
+    driver: bridge
+    internal: true
+  weathernft-public:
+    driver: bridge
+
+# Note: Volumes use bind mounts in production for better backup control
+# Data is stored in /var/lib/weathernft/ and /var/log/weathernft/
