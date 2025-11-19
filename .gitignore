@@ -21,6 +21,10 @@ dist/
 build/
 out/
 
+# Test coverage
+coverage/
+*.lcov
+
 # Cache directories
 .cache/
 .parcel-cache/
