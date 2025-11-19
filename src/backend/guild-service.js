@@ -18,6 +18,11 @@ const {
   corsOptions
 } = require('./middleware/security');
 const { requestLogger, errorLogger } = require('./middleware/logger');
+const {
+  validateGuildCreation,
+  validateGuildJoin,
+  sanitizeInput
+} = require('./middleware/validation');
 
 const app = express();
 const PORT = process.env.GUILD_SERVICE_PORT || 3010;
@@ -26,6 +31,7 @@ const PORT = process.env.GUILD_SERVICE_PORT || 3010;
 app.use(securityHeaders());
 app.use(cors(corsOptions()));
 app.use(express.json());
+app.use(sanitizeInput);
 app.use(requestLogger);
 app.use(generalLimiter);
 
@@ -169,7 +175,7 @@ app.get('/api/algorithms/:algorithmId', async (req, res) => {
  * POST /api/guilds/create
  * Rate limited: 20 creations per hour
  */
-app.post('/api/guilds/create', authenticateToken, createLimiter, async (req, res) => {
+app.post('/api/guilds/create', authenticateToken, createLimiter, validateGuildCreation, async (req, res) => {
   try {
     const { name, description, logo, algorithms } = req.body;
 
@@ -337,7 +343,7 @@ app.get('/api/guilds/:guildId', async (req, res) => {
  * Join a guild (PROTECTED)
  * POST /api/guilds/:guildId/join
  */
-app.post('/api/guilds/:guildId/join', authenticateToken, async (req, res) => {
+app.post('/api/guilds/:guildId/join', authenticateToken, validateGuildJoin, async (req, res) => {
   try {
     const { guildId } = req.params;
     // Get user address from authenticated user

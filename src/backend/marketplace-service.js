@@ -30,6 +30,12 @@ const {
   corsOptions
 } = require('./middleware/security');
 const { requestLogger, errorLogger } = require('./middleware/logger');
+const {
+  validateMarketplaceListing,
+  validateMarketplacePurchase,
+  sanitizeInput,
+  validatePagination
+} = require('./middleware/validation');
 
 const app = express();
 const PORT = process.env.MARKETPLACE_PORT || 3013;
@@ -41,6 +47,7 @@ const db = new DatabaseService();
 app.use(securityHeaders());
 app.use(cors(corsOptions()));
 app.use(express.json());
+app.use(sanitizeInput);
 app.use(requestLogger);
 app.use(generalLimiter);
 
@@ -85,7 +92,7 @@ const TRANSACTION_TYPE = {
  * POST /api/marketplace/listings
  * Rate limited: 20 creations per hour
  */
-app.post('/api/marketplace/listings', authenticateToken, createLimiter, async (req, res) => {
+app.post('/api/marketplace/listings', authenticateToken, createLimiter, validateMarketplaceListing, async (req, res) => {
   try {
     const {
       nftId,
@@ -398,6 +405,9 @@ app.post('/api/marketplace/buy', authenticateToken, async (req, res) => {
   try {
     const { listingId, paymentMethod = 'wallet' } = req.body;
     const buyer = req.user.walletAddress;
+
+    // Add buyer to body for validation
+    req.body.buyer = buyer;
 
     if (!listingId) {
       return res.status(400).json({

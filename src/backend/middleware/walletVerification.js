@@ -180,7 +180,7 @@ function verifyTimestamp(timestamp, maxAgeMs = 5 * 60 * 1000) {
     return false;
   }
 
-  if (age > maxAgeMs) {
+  if (age >= maxAgeMs) {
     logSecurityEvent('expired_timestamp', {
       timestamp,
       now,

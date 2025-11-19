@@ -22,6 +22,11 @@ const {
   corsOptions
 } = require('./middleware/security');
 const { requestLogger, errorLogger } = require('./middleware/logger');
+const {
+  validateNFTCreation,
+  validateArtGeneration,
+  sanitizeInput
+} = require('./middleware/validation');
 
 const app = express();
 const PORT = process.env.NFT_SERVICE_PORT || 3009;
@@ -33,6 +38,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 app.use(securityHeaders());
 app.use(cors(corsOptions()));
 app.use(express.json({ limit: '50mb' })); // Increase limit for base64 images
+app.use(sanitizeInput);
 app.use(requestLogger);
 app.use(generalLimiter);
 
@@ -147,7 +153,7 @@ app.post('/api/art/generate', expensiveLimiter, async (req, res) => {
  * Generates art automatically from weather data
  * Rate limited: 10 AI generations per hour
  */
-app.post('/api/nft/create-with-art', authenticateToken, expensiveLimiter, async (req, res) => {
+app.post('/api/nft/create-with-art', authenticateToken, expensiveLimiter, validateNFTCreation, async (req, res) => {
   try {
     const {
       eventId,
@@ -261,7 +267,7 @@ app.post('/api/nft/create-with-art', authenticateToken, expensiveLimiter, async 
  * }
  * Rate limited: 20 creations per hour
  */
-app.post('/api/nft/create', authenticateToken, createLimiter, async (req, res) => {
+app.post('/api/nft/create', authenticateToken, createLimiter, validateNFTCreation, async (req, res) => {
   try {
     const {
       eventId,

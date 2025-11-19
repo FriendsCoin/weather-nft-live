@@ -24,6 +24,19 @@ const {
   verifyWalletSignature,
   verifyTimestamp
 } = require('./middleware/walletVerification');
+const {
+  validateRegistration,
+  validateLogin,
+  sanitizeInput
+} = require('./middleware/validation');
+const {
+  initRedis,
+  blacklistToken,
+  blacklistAllUserTokens,
+  checkTokenBlacklist,
+  getRedisStatus,
+  disconnectRedis
+} = require('./middleware/tokenBlacklist');
 
 const app = express();
 const PORT = process.env.AUTH_SERVICE_PORT || 3014;
@@ -32,6 +45,7 @@ const PORT = process.env.AUTH_SERVICE_PORT || 3014;
 app.use(securityHeaders());
 app.use(cors(corsOptions()));
 app.use(express.json());
+app.use(sanitizeInput); // Sanitize input to prevent XSS
 app.use(requestLogger); // Log all requests
 app.use(generalLimiter); // Rate limit all routes
 
@@ -72,11 +86,16 @@ app.get('/health', async (req, res) => {
   try {
     const isDbConnected = await db.healthCheck();
     const userCount = await User.countDocuments();
+    const redisStatus = getRedisStatus();
 
     res.json({
       status: 'OK',
       service: 'WeatherNFT Authentication Service',
       database: isDbConnected ? 'connected' : 'disconnected',
+      redis: redisStatus.connected ? 'connected' : 'disconnected',
+      features: {
+        token_blacklist: redisStatus.connected ? 'enabled' : 'disabled'
+      },
       stats: {
         total_users: userCount
       },
@@ -96,7 +115,7 @@ app.get('/health', async (req, res) => {
  * POST /api/auth/register
  * Rate limited: 5 attempts per 15 minutes
  */
-app.post('/api/auth/register', authLimiter, async (req, res) => {
+app.post('/api/auth/register', authLimiter, validateRegistration, async (req, res) => {
   try {
     const { walletAddress, username, email, password } = req.body;
 
@@ -108,13 +127,35 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
       });
     }
 
-    // Check if user already exists
+    // Check if user already exists by wallet address
     const existingUser = await User.findOne({ address: walletAddress });
     if (existingUser) {
       return res.status(400).json({
         success: false,
         error: 'User with this wallet address already exists'
       });
+    }
+
+    // Check if username is already taken (if provided)
+    if (username) {
+      const existingUsername = await User.findOne({ username: username });
+      if (existingUsername) {
+        return res.status(400).json({
+          success: false,
+          error: 'Username is already taken'
+        });
+      }
+    }
+
+    // Check if email is already registered (if provided)
+    if (email) {
+      const existingEmail = await User.findOne({ email: email });
+      if (existingEmail) {
+        return res.status(400).json({
+          success: false,
+          error: 'Email is already registered'
+        });
+      }
     }
 
     // Hash password if provided (optional for wallet-only auth)
@@ -178,7 +219,7 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
  * POST /api/auth/login
  * Rate limited: 5 attempts per 15 minutes
  */
-app.post('/api/auth/login', authLimiter, async (req, res) => {
+app.post('/api/auth/login', authLimiter, validateLogin, async (req, res) => {
   try {
     const { walletAddress, password, signature, timestamp } = req.body;
 
@@ -299,7 +340,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
  * Get current user profile (protected route)
  * GET /api/auth/me
  */
-app.get('/api/auth/me', authenticateToken, async (req, res) => {
+app.get('/api/auth/me', authenticateToken, checkTokenBlacklist, async (req, res) => {
   try {
     const user = await User.findById(req.user.userId).select('-password');
 
@@ -328,7 +369,7 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
  * Verify token validity
  * POST /api/auth/verify
  */
-app.post('/api/auth/verify', authenticateToken, (req, res) => {
+app.post('/api/auth/verify', authenticateToken, checkTokenBlacklist, (req, res) => {
   res.json({
     success: true,
     valid: true,
@@ -340,7 +381,7 @@ app.post('/api/auth/verify', authenticateToken, (req, res) => {
  * Refresh token
  * POST /api/auth/refresh
  */
-app.post('/api/auth/refresh', authenticateToken, async (req, res) => {
+app.post('/api/auth/refresh', authenticateToken, checkTokenBlacklist, async (req, res) => {
   try {
     // Generate new token with same payload
     const newToken = generateToken({
@@ -356,6 +397,95 @@ app.post('/api/auth/refresh', authenticateToken, async (req, res) => {
     });
 
   } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Logout (blacklist current token)
+ * POST /api/auth/logout
+ */
+app.post('/api/auth/logout', authenticateToken, async (req, res) => {
+  try {
+    // Extract token from header
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (token) {
+      // Blacklist token for 24 hours (default JWT expiration)
+      const success = await blacklistToken(token, 86400);
+
+      if (success) {
+        logAuthEvent('logout', req.user.walletAddress, true, {
+          userId: req.user.userId
+        });
+
+        res.json({
+          success: true,
+          message: 'Logged out successfully'
+        });
+      } else {
+        // Redis not available, but we still log out client-side
+        logAuthEvent('logout', req.user.walletAddress, true, {
+          userId: req.user.userId,
+          warning: 'Token blacklist unavailable'
+        });
+
+        res.json({
+          success: true,
+          message: 'Logged out successfully (client-side only)',
+          warning: 'Token revocation unavailable. Token will remain valid until expiration.'
+        });
+      }
+    } else {
+      res.status(400).json({
+        success: false,
+        error: 'No token provided'
+      });
+    }
+  } catch (error) {
+    console.error('❌ Logout failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Logout from all devices (blacklist all user tokens)
+ * POST /api/auth/logout-all
+ */
+app.post('/api/auth/logout-all', authenticateToken, async (req, res) => {
+  try {
+    const success = await blacklistAllUserTokens(req.user.userId, 86400);
+
+    if (success) {
+      logAuthEvent('logout_all_devices', req.user.walletAddress, true, {
+        userId: req.user.userId
+      });
+
+      res.json({
+        success: true,
+        message: 'Logged out from all devices successfully'
+      });
+    } else {
+      logAuthEvent('logout_all_devices', req.user.walletAddress, false, {
+        userId: req.user.userId,
+        error: 'Redis unavailable'
+      });
+
+      res.json({
+        success: false,
+        error: 'Token revocation unavailable. Please try again later.',
+        warning: 'Ensure Redis is running for logout functionality.'
+      });
+    }
+  } catch (error) {
+    console.error('❌ Logout all failed:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -383,6 +513,15 @@ async function startServer() {
     await User.createIndexes();
     console.log('✅ Database indexes initialized');
 
+    // Initialize Redis for token blacklist (optional)
+    console.log('🔴 Initializing Redis for token blacklist...');
+    const redis = initRedis();
+    if (redis) {
+      console.log('✅ Redis initialized (token blacklist enabled)');
+    } else {
+      console.warn('⚠️  Redis not available (token blacklist disabled)');
+    }
+
     // Start Express server
     app.listen(PORT, () => {
       console.log(`✅ Server running on http://localhost:${PORT}`);
@@ -395,6 +534,8 @@ async function startServer() {
       console.log('   • GET  /api/auth/me                     - Get current user (protected)');
       console.log('   • POST /api/auth/verify                 - Verify token (protected)');
       console.log('   • POST /api/auth/refresh                - Refresh token (protected)');
+      console.log('   • POST /api/auth/logout                 - Logout (revoke token)');
+      console.log('   • POST /api/auth/logout-all             - Logout from all devices');
       console.log('');
       console.log('✅ Ready to authenticate users!');
       console.log('📦 MongoDB collection ready: User');
@@ -412,6 +553,7 @@ async function startServer() {
 process.on('SIGINT', async () => {
   console.log('\n⚠️  Shutting down auth service...');
   try {
+    await disconnectRedis();
     await db.disconnect();
     console.log('✅ Database connection closed');
     process.exit(0);
@@ -424,6 +566,7 @@ process.on('SIGINT', async () => {
 process.on('SIGTERM', async () => {
   console.log('\n⚠️  Received SIGTERM signal...');
   try {
+    await disconnectRedis();
     await db.disconnect();
     console.log('✅ Database connection closed');
     process.exit(0);
