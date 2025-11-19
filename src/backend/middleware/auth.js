@@ -5,9 +5,29 @@
 
 const jwt = require('jsonwebtoken');
 
-// JWT Secret from environment
-const JWT_SECRET = process.env.JWT_SECRET || 'weathernft-secret-key-change-in-production';
+// JWT Secret from environment (REQUIRED)
+const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRATION = process.env.JWT_EXPIRATION || '24h';
+
+// Validate JWT_SECRET exists
+if (!JWT_SECRET) {
+  console.error('🔴 FATAL: JWT_SECRET environment variable is required!');
+  console.error('   Set JWT_SECRET in .env file before starting the server.');
+  console.error('   Example: JWT_SECRET=your-super-secret-key-here');
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET is required in production');
+  } else {
+    console.warn('⚠️  WARNING: Using temporary JWT_SECRET for development');
+    console.warn('   This is INSECURE and should NEVER be used in production!');
+  }
+}
+
+// Warn if using weak secret
+if (JWT_SECRET && JWT_SECRET.length < 32) {
+  console.warn('⚠️  WARNING: JWT_SECRET is too short (< 32 characters)');
+  console.warn('   Use a strong secret key for production.');
+}
 
 /**
  * Generate JWT token for a user

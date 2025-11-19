@@ -115,17 +115,41 @@ app.post('/api/marketplace/listings', authenticateToken, async (req, res) => {
       const nftResponse = await axios.get(`${SERVICES.nft}/api/nfts/${nftId}`);
       const nft = nftResponse.data;
 
-      // Verify seller owns the NFT
-      if (nft.capturedBy && nft.capturedBy !== seller) {
+      if (!nft) {
+        return res.status(404).json({
+          success: false,
+          error: 'NFT not found'
+        });
+      }
+
+      // Verify seller owns the NFT (check owner field, not capturedBy)
+      const nftOwner = nft.owner || nft.capturedBy;
+      if (!nftOwner) {
+        return res.status(400).json({
+          success: false,
+          error: 'NFT has no owner assigned'
+        });
+      }
+
+      if (nftOwner !== seller) {
         return res.status(403).json({
           success: false,
-          error: 'Only the NFT owner can list it'
+          error: 'Only the NFT owner can list it',
+          nftOwner: nftOwner,
+          yourAddress: seller
         });
       }
     } catch (error) {
-      return res.status(404).json({
+      if (error.response && error.response.status === 404) {
+        return res.status(404).json({
+          success: false,
+          error: 'NFT not found'
+        });
+      }
+      return res.status(500).json({
         success: false,
-        error: 'NFT not found'
+        error: 'Failed to verify NFT ownership',
+        message: error.message
       });
     }
 

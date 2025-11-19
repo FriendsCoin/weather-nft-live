@@ -12,12 +12,23 @@ const bcrypt = require('bcryptjs');
 const DatabaseService = require('./database');
 const { User } = require('./models');
 const { generateToken, authenticateToken } = require('./middleware/auth');
+const {
+  securityHeaders,
+  generalLimiter,
+  authLimiter,
+  corsOptions
+} = require('./middleware/security');
+const { requestLogger, errorLogger, logAuthEvent } = require('./middleware/logger');
 
 const app = express();
 const PORT = process.env.AUTH_SERVICE_PORT || 3014;
 
-app.use(cors());
+// Security middleware
+app.use(securityHeaders());
+app.use(cors(corsOptions()));
 app.use(express.json());
+app.use(requestLogger); // Log all requests
+app.use(generalLimiter); // Rate limit all routes
 
 // Initialize database
 const db = new DatabaseService();
@@ -51,8 +62,9 @@ app.get('/health', async (req, res) => {
 /**
  * Register new user with wallet address
  * POST /api/auth/register
+ * Rate limited: 5 attempts per 15 minutes
  */
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', authLimiter, async (req, res) => {
   try {
     const { walletAddress, username, email, password } = req.body;
 
@@ -106,6 +118,7 @@ app.post('/api/auth/register', async (req, res) => {
     });
 
     console.log(`✅ User registered: ${walletAddress}`);
+    logAuthEvent('register', walletAddress, true, { username });
 
     res.status(201).json({
       success: true,
@@ -120,6 +133,7 @@ app.post('/api/auth/register', async (req, res) => {
 
   } catch (error) {
     console.error('❌ Registration failed:', error);
+    logAuthEvent('register', req.body.walletAddress, false, { error: error.message });
     res.status(500).json({
       success: false,
       error: error.message
@@ -130,8 +144,9 @@ app.post('/api/auth/register', async (req, res) => {
 /**
  * Login with wallet address (signature verification)
  * POST /api/auth/login
+ * Rate limited: 5 attempts per 15 minutes
  */
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', authLimiter, async (req, res) => {
   try {
     const { walletAddress, password, signature } = req.body;
 
@@ -178,6 +193,10 @@ app.post('/api/auth/login', async (req, res) => {
     });
 
     console.log(`✅ User logged in: ${walletAddress}`);
+    logAuthEvent('login', walletAddress, true, {
+      username: user.username,
+      method: password ? 'password' : 'wallet'
+    });
 
     res.json({
       success: true,
@@ -194,6 +213,7 @@ app.post('/api/auth/login', async (req, res) => {
 
   } catch (error) {
     console.error('❌ Login failed:', error);
+    logAuthEvent('login', req.body.walletAddress, false, { error: error.message });
     res.status(500).json({
       success: false,
       error: error.message
@@ -268,6 +288,9 @@ app.post('/api/auth/refresh', authenticateToken, async (req, res) => {
     });
   }
 });
+
+// Error logger middleware (must be after routes)
+app.use(errorLogger);
 
 // Start server with database connection
 async function startServer() {
