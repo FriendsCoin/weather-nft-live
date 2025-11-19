@@ -20,9 +20,14 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
+const DatabaseService = require('./database');
+const { Listing, Offer, MarketplaceTransaction } = require('./models');
 
 const app = express();
 const PORT = process.env.MARKETPLACE_PORT || 3013;
+
+// Initialize database
+const db = new DatabaseService();
 
 // Middleware
 app.use(cors());
@@ -35,13 +40,6 @@ const SERVICES = {
   analytics: `http://localhost:${process.env.ANALYTICS_PORT || 3011}`,
   websocket: `http://localhost:${process.env.WEBSOCKET_PORT || 8080}`
 };
-
-// In-memory storage (в продакшене использовать MongoDB)
-const listings = new Map(); // NFT listings
-const offers = new Map(); // Offers/bids on NFTs
-const priceHistory = new Map(); // Price history for each NFT
-const transactions = new Map(); // Transaction history
-const watchlist = new Map(); // User watchlists
 
 // Listing status
 const LISTING_STATUS = {
@@ -96,20 +94,26 @@ app.post('/api/marketplace/listings', async (req, res) => {
       });
     }
 
-    // Check if NFT exists
+    // Check if NFT is already listed in marketplace
+    const existingListing = await Listing.findOne({
+      nftId,
+      status: LISTING_STATUS.ACTIVE
+    });
+
+    if (existingListing) {
+      return res.status(400).json({
+        success: false,
+        error: 'NFT is already listed in marketplace'
+      });
+    }
+
+    // Check if NFT exists and verify ownership
     try {
       const nftResponse = await axios.get(`${SERVICES.nft}/api/nfts/${nftId}`);
       const nft = nftResponse.data;
 
-      if (nft.status === 'listed') {
-        return res.status(400).json({
-          success: false,
-          error: 'NFT is already listed'
-        });
-      }
-
       // Verify seller owns the NFT
-      if (nft.capturedBy !== seller) {
+      if (nft.capturedBy && nft.capturedBy !== seller) {
         return res.status(403).json({
           success: false,
           error: 'Only the NFT owner can list it'
@@ -126,7 +130,7 @@ app.post('/api/marketplace/listings', async (req, res) => {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + duration);
 
-    const listing = {
+    const listingData = {
       listingId,
       nftId,
       seller,
@@ -140,20 +144,11 @@ app.post('/api/marketplace/listings', async (req, res) => {
       status: LISTING_STATUS.ACTIVE,
       views: 0,
       favorites: 0,
-      createdAt: new Date(),
-      expiresAt,
-      updatedAt: new Date()
+      expiresAt
     };
 
-    listings.set(listingId, listing);
-
-    // Record price history
-    recordPriceHistory(nftId, {
-      type: 'listed',
-      price,
-      currency,
-      timestamp: new Date()
-    });
+    // Create listing in MongoDB
+    const listing = await Listing.create(listingData);
 
     console.log(`✅ NFT listed: ${nftId} for ${price} ${currency}`);
 
@@ -163,10 +158,7 @@ app.post('/api/marketplace/listings', async (req, res) => {
     });
 
     // Broadcast listing event
-    broadcastToWebSocket('marketplace_listing', {
-      type: 'new_listing',
-      listing
-    });
+    broadcastToWebSocket('marketplace_listing', 'new_listing', { listing });
 
   } catch (error) {
     console.error('Error creating listing:', error);
@@ -181,7 +173,7 @@ app.post('/api/marketplace/listings', async (req, res) => {
  * Get all active listings
  * GET /api/marketplace/listings
  */
-app.get('/api/marketplace/listings', (req, res) => {
+app.get('/api/marketplace/listings', async (req, res) => {
   try {
     const {
       status = LISTING_STATUS.ACTIVE,
@@ -190,81 +182,66 @@ app.get('/api/marketplace/listings', (req, res) => {
       maxPrice,
       currency,
       auctionMode,
-      rarity,
-      weatherCondition,
       sortBy = 'createdAt',
       sortOrder = 'desc',
       page = 1,
       limit = 20
     } = req.query;
 
-    let filteredListings = Array.from(listings.values());
+    // Build MongoDB query
+    const query = {};
 
-    // Apply filters
     if (status) {
-      filteredListings = filteredListings.filter(l => l.status === status);
+      query.status = status;
     }
 
     if (seller) {
-      filteredListings = filteredListings.filter(l => l.seller === seller);
+      query.seller = seller;
     }
 
-    if (minPrice) {
-      filteredListings = filteredListings.filter(l => l.price >= parseFloat(minPrice));
-    }
-
-    if (maxPrice) {
-      filteredListings = filteredListings.filter(l => l.price <= parseFloat(maxPrice));
+    if (minPrice || maxPrice) {
+      query.price = {};
+      if (minPrice) query.price.$gte = parseFloat(minPrice);
+      if (maxPrice) query.price.$lte = parseFloat(maxPrice);
     }
 
     if (currency) {
-      filteredListings = filteredListings.filter(l => l.currency === currency);
+      query.currency = currency;
     }
 
     if (auctionMode !== undefined) {
-      const isAuction = auctionMode === 'true';
-      filteredListings = filteredListings.filter(l => l.auctionMode === isAuction);
+      query.auctionMode = auctionMode === 'true';
     }
 
-    // Check for expired listings
+    // Update expired listings
     const now = new Date();
-    filteredListings.forEach(listing => {
-      if (listing.status === LISTING_STATUS.ACTIVE && listing.expiresAt < now) {
-        listing.status = LISTING_STATUS.EXPIRED;
-        listings.set(listing.listingId, listing);
-      }
-    });
+    await Listing.updateMany(
+      { status: LISTING_STATUS.ACTIVE, expiresAt: { $lt: now } },
+      { $set: { status: LISTING_STATUS.EXPIRED } }
+    );
 
-    // Sorting
-    filteredListings.sort((a, b) => {
-      let aVal = a[sortBy];
-      let bVal = b[sortBy];
+    // Build sort object
+    const sort = {};
+    sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
 
-      if (sortBy === 'price' || sortBy === 'currentBid') {
-        aVal = parseFloat(aVal) || 0;
-        bVal = parseFloat(bVal) || 0;
-      }
+    // Execute query with pagination
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
 
-      if (sortOrder === 'asc') {
-        return aVal > bVal ? 1 : -1;
-      } else {
-        return aVal < bVal ? 1 : -1;
-      }
-    });
-
-    // Pagination
-    const startIndex = (parseInt(page) - 1) * parseInt(limit);
-    const endIndex = startIndex + parseInt(limit);
-    const paginatedListings = filteredListings.slice(startIndex, endIndex);
+    const [filteredListings, total] = await Promise.all([
+      Listing.find(query).sort(sort).skip(skip).limit(limitNum).lean(),
+      Listing.countDocuments(query)
+    ]);
 
     res.json({
       success: true,
-      data: paginatedListings,
+      data: filteredListings,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total: filteredListings.length,
-        pages: Math.ceil(filteredListings.length / parseInt(limit))
+        page: pageNum,
+        limit: limitNum,
+        total,
+        pages: Math.ceil(total / limitNum)
       }
     });
 
@@ -281,10 +258,16 @@ app.get('/api/marketplace/listings', (req, res) => {
  * Get single listing
  * GET /api/marketplace/listings/:listingId
  */
-app.get('/api/marketplace/listings/:listingId', (req, res) => {
+app.get('/api/marketplace/listings/:listingId', async (req, res) => {
   try {
     const { listingId } = req.params;
-    const listing = listings.get(listingId);
+
+    // Find and increment view count atomically
+    const listing = await Listing.findOneAndUpdate(
+      { listingId },
+      { $inc: { views: 1 } },
+      { new: true }
+    );
 
     if (!listing) {
       return res.status(404).json({
@@ -292,10 +275,6 @@ app.get('/api/marketplace/listings/:listingId', (req, res) => {
         error: 'Listing not found'
       });
     }
-
-    // Increment view count
-    listing.views += 1;
-    listings.set(listingId, listing);
 
     res.json({
       success: true,
@@ -315,12 +294,12 @@ app.get('/api/marketplace/listings/:listingId', (req, res) => {
  * Cancel listing
  * DELETE /api/marketplace/listings/:listingId
  */
-app.delete('/api/marketplace/listings/:listingId', (req, res) => {
+app.delete('/api/marketplace/listings/:listingId', async (req, res) => {
   try {
     const { listingId } = req.params;
     const { seller } = req.body;
 
-    const listing = listings.get(listingId);
+    const listing = await Listing.findOne({ listingId });
 
     if (!listing) {
       return res.status(404).json({
@@ -344,8 +323,7 @@ app.delete('/api/marketplace/listings/:listingId', (req, res) => {
     }
 
     listing.status = LISTING_STATUS.CANCELLED;
-    listing.updatedAt = new Date();
-    listings.set(listingId, listing);
+    await listing.save();
 
     console.log(`❌ Listing cancelled: ${listingId}`);
 
@@ -356,8 +334,7 @@ app.delete('/api/marketplace/listings/:listingId', (req, res) => {
     });
 
     // Broadcast cancellation
-    broadcastToWebSocket('marketplace_listing', {
-      type: 'listing_cancelled',
+    broadcastToWebSocket('marketplace_listing', 'listing_cancelled', {
       listingId,
       nftId: listing.nftId
     });
@@ -390,7 +367,7 @@ app.post('/api/marketplace/buy', async (req, res) => {
       });
     }
 
-    const listing = listings.get(listingId);
+    const listing = await Listing.findOne({ listingId });
 
     if (!listing) {
       return res.status(404).json({
@@ -424,7 +401,7 @@ app.post('/api/marketplace/buy', async (req, res) => {
 
     // Create transaction record
     const transactionId = `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const transaction = {
+    const transactionData = {
       transactionId,
       type: TRANSACTION_TYPE.DIRECT_SALE,
       listingId,
@@ -440,25 +417,14 @@ app.post('/api/marketplace/buy', async (req, res) => {
       timestamp: new Date()
     };
 
-    transactions.set(transactionId, transaction);
+    const transaction = await MarketplaceTransaction.create(transactionData);
 
     // Update listing status
     listing.status = LISTING_STATUS.SOLD;
     listing.soldTo = buyer;
     listing.soldAt = new Date();
     listing.soldPrice = salePrice;
-    listing.updatedAt = new Date();
-    listings.set(listingId, listing);
-
-    // Record price history
-    recordPriceHistory(listing.nftId, {
-      type: 'sold',
-      price: salePrice,
-      currency: listing.currency,
-      buyer,
-      seller: listing.seller,
-      timestamp: new Date()
-    });
+    await listing.save();
 
     console.log(`💰 NFT sold: ${listing.nftId} for ${salePrice} ${listing.currency}`);
 
@@ -469,8 +435,7 @@ app.post('/api/marketplace/buy', async (req, res) => {
     });
 
     // Broadcast sale event
-    broadcastToWebSocket('marketplace_sale', {
-      type: 'nft_sold',
+    broadcastToWebSocket('marketplace_sale', 'nft_sold', {
       transaction,
       nftId: listing.nftId
     });
@@ -492,7 +457,7 @@ app.post('/api/marketplace/buy', async (req, res) => {
  * Create offer/bid on NFT
  * POST /api/marketplace/offers
  */
-app.post('/api/marketplace/offers', (req, res) => {
+app.post('/api/marketplace/offers', async (req, res) => {
   try {
     const {
       listingId,
@@ -512,7 +477,7 @@ app.post('/api/marketplace/offers', (req, res) => {
 
     let listing = null;
     if (listingId) {
-      listing = listings.get(listingId);
+      listing = await Listing.findOne({ listingId });
       if (!listing) {
         return res.status(404).json({
           success: false,
@@ -525,7 +490,7 @@ app.post('/api/marketplace/offers', (req, res) => {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + duration);
 
-    const offer = {
+    const offerData = {
       offerId,
       listingId,
       nftId: listing ? listing.nftId : nftId,
@@ -533,12 +498,10 @@ app.post('/api/marketplace/offers', (req, res) => {
       amount: parseFloat(amount),
       currency,
       status: OFFER_STATUS.PENDING,
-      createdAt: new Date(),
-      expiresAt,
-      updatedAt: new Date()
+      expiresAt
     };
 
-    // For auction listings, update highest bid
+    // For auction listings, update highest bid atomically (fixes race condition)
     if (listing && listing.auctionMode) {
       if (amount < listing.minimumBid) {
         return res.status(400).json({
@@ -554,15 +517,33 @@ app.post('/api/marketplace/offers', (req, res) => {
         });
       }
 
-      listing.currentBid = parseFloat(amount);
-      listing.highestBidder = offerer;
-      listing.updatedAt = new Date();
-      listings.set(listingId, listing);
+      // Atomic update to prevent race condition
+      const updatedListing = await Listing.findOneAndUpdate(
+        {
+          listingId,
+          status: LISTING_STATUS.ACTIVE,
+          currentBid: { $lt: amount } // Ensure bid is still valid
+        },
+        {
+          $set: {
+            currentBid: parseFloat(amount),
+            highestBidder: offerer
+          }
+        },
+        { new: true }
+      );
 
-      console.log(`📈 New bid on ${listing.nftId}: ${amount} ${currency} by ${offerer}`);
+      if (!updatedListing) {
+        return res.status(400).json({
+          success: false,
+          error: 'Bid was outbid by another user. Please try again with a higher amount.'
+        });
+      }
+
+      console.log(`📈 New bid on ${updatedListing.nftId}: ${amount} ${currency} by ${offerer}`);
     }
 
-    offers.set(offerId, offer);
+    const offer = await Offer.create(offerData);
 
     res.json({
       success: true,
@@ -570,8 +551,8 @@ app.post('/api/marketplace/offers', (req, res) => {
     });
 
     // Broadcast offer event
-    broadcastToWebSocket('marketplace_offer', {
-      type: listing?.auctionMode ? 'new_bid' : 'new_offer',
+    const eventType = listing?.auctionMode ? 'new_bid' : 'new_offer';
+    broadcastToWebSocket('marketplace_offer', eventType, {
       offer,
       listing
     });
@@ -589,39 +570,26 @@ app.post('/api/marketplace/offers', (req, res) => {
  * Get offers for NFT or listing
  * GET /api/marketplace/offers
  */
-app.get('/api/marketplace/offers', (req, res) => {
+app.get('/api/marketplace/offers', async (req, res) => {
   try {
     const { listingId, nftId, offerer, status } = req.query;
 
-    let filteredOffers = Array.from(offers.values());
+    // Build query
+    const query = {};
+    if (listingId) query.listingId = listingId;
+    if (nftId) query.nftId = nftId;
+    if (offerer) query.offerer = offerer;
+    if (status) query.status = status;
 
-    if (listingId) {
-      filteredOffers = filteredOffers.filter(o => o.listingId === listingId);
-    }
-
-    if (nftId) {
-      filteredOffers = filteredOffers.filter(o => o.nftId === nftId);
-    }
-
-    if (offerer) {
-      filteredOffers = filteredOffers.filter(o => o.offerer === offerer);
-    }
-
-    if (status) {
-      filteredOffers = filteredOffers.filter(o => o.status === status);
-    }
-
-    // Check for expired offers
+    // Update expired offers
     const now = new Date();
-    filteredOffers.forEach(offer => {
-      if (offer.status === OFFER_STATUS.PENDING && offer.expiresAt < now) {
-        offer.status = OFFER_STATUS.EXPIRED;
-        offers.set(offer.offerId, offer);
-      }
-    });
+    await Offer.updateMany(
+      { status: OFFER_STATUS.PENDING, expiresAt: { $lt: now } },
+      { $set: { status: OFFER_STATUS.EXPIRED } }
+    );
 
-    // Sort by amount (highest first)
-    filteredOffers.sort((a, b) => b.amount - a.amount);
+    // Get offers sorted by amount (highest first)
+    const filteredOffers = await Offer.find(query).sort({ amount: -1 }).lean();
 
     res.json({
       success: true,
@@ -642,12 +610,12 @@ app.get('/api/marketplace/offers', (req, res) => {
  * Accept offer
  * POST /api/marketplace/offers/:offerId/accept
  */
-app.post('/api/marketplace/offers/:offerId/accept', (req, res) => {
+app.post('/api/marketplace/offers/:offerId/accept', async (req, res) => {
   try {
     const { offerId } = req.params;
     const { seller } = req.body;
 
-    const offer = offers.get(offerId);
+    const offer = await Offer.findOne({ offerId });
 
     if (!offer) {
       return res.status(404).json({
@@ -665,7 +633,7 @@ app.post('/api/marketplace/offers/:offerId/accept', (req, res) => {
 
     // Verify seller owns the NFT
     if (offer.listingId) {
-      const listing = listings.get(offer.listingId);
+      const listing = await Listing.findOne({ listingId: offer.listingId });
       if (listing && listing.seller !== seller) {
         return res.status(403).json({
           success: false,
@@ -677,12 +645,11 @@ app.post('/api/marketplace/offers/:offerId/accept', (req, res) => {
     // Accept offer
     offer.status = OFFER_STATUS.ACCEPTED;
     offer.acceptedAt = new Date();
-    offer.updatedAt = new Date();
-    offers.set(offerId, offer);
+    await offer.save();
 
     // Create transaction
     const transactionId = `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const transaction = {
+    const transactionData = {
       transactionId,
       type: TRANSACTION_TYPE.OFFER_ACCEPTED,
       offerId,
@@ -697,29 +664,22 @@ app.post('/api/marketplace/offers/:offerId/accept', (req, res) => {
       timestamp: new Date()
     };
 
-    transactions.set(transactionId, transaction);
+    const transaction = await MarketplaceTransaction.create(transactionData);
 
     // Update listing if exists
     if (offer.listingId) {
-      const listing = listings.get(offer.listingId);
-      if (listing) {
-        listing.status = LISTING_STATUS.SOLD;
-        listing.soldTo = offer.offerer;
-        listing.soldAt = new Date();
-        listing.soldPrice = offer.amount;
-        listings.set(offer.listingId, listing);
-      }
+      await Listing.updateOne(
+        { listingId: offer.listingId },
+        {
+          $set: {
+            status: LISTING_STATUS.SOLD,
+            soldTo: offer.offerer,
+            soldAt: new Date(),
+            soldPrice: offer.amount
+          }
+        }
+      );
     }
-
-    // Record price history
-    recordPriceHistory(offer.nftId, {
-      type: 'offer_accepted',
-      price: offer.amount,
-      currency: offer.currency,
-      buyer: offer.offerer,
-      seller,
-      timestamp: new Date()
-    });
 
     console.log(`✅ Offer accepted: ${offerId} for ${offer.amount} ${offer.currency}`);
 
@@ -729,8 +689,7 @@ app.post('/api/marketplace/offers/:offerId/accept', (req, res) => {
       transaction
     });
 
-    broadcastToWebSocket('marketplace_sale', {
-      type: 'offer_accepted',
+    broadcastToWebSocket('marketplace_sale', 'offer_accepted', {
       transaction,
       offer
     });
@@ -748,10 +707,10 @@ app.post('/api/marketplace/offers/:offerId/accept', (req, res) => {
  * Reject offer
  * POST /api/marketplace/offers/:offerId/reject
  */
-app.post('/api/marketplace/offers/:offerId/reject', (req, res) => {
+app.post('/api/marketplace/offers/:offerId/reject', async (req, res) => {
   try {
     const { offerId } = req.params;
-    const offer = offers.get(offerId);
+    const offer = await Offer.findOne({ offerId });
 
     if (!offer) {
       return res.status(404).json({
@@ -762,8 +721,7 @@ app.post('/api/marketplace/offers/:offerId/reject', (req, res) => {
 
     offer.status = OFFER_STATUS.REJECTED;
     offer.rejectedAt = new Date();
-    offer.updatedAt = new Date();
-    offers.set(offerId, offer);
+    await offer.save();
 
     res.json({
       success: true,
@@ -784,12 +742,12 @@ app.post('/api/marketplace/offers/:offerId/reject', (req, res) => {
  * Cancel offer
  * DELETE /api/marketplace/offers/:offerId
  */
-app.delete('/api/marketplace/offers/:offerId', (req, res) => {
+app.delete('/api/marketplace/offers/:offerId', async (req, res) => {
   try {
     const { offerId } = req.params;
     const { offerer } = req.body;
 
-    const offer = offers.get(offerId);
+    const offer = await Offer.findOne({ offerId });
 
     if (!offer) {
       return res.status(404).json({
@@ -806,8 +764,7 @@ app.delete('/api/marketplace/offers/:offerId', (req, res) => {
     }
 
     offer.status = OFFER_STATUS.CANCELLED;
-    offer.updatedAt = new Date();
-    offers.set(offerId, offer);
+    await offer.save();
 
     res.json({
       success: true,
@@ -825,45 +782,6 @@ app.delete('/api/marketplace/offers/:offerId', (req, res) => {
 });
 
 // ============================================
-// PRICE HISTORY ENDPOINTS
-// ============================================
-
-/**
- * Get price history for NFT
- * GET /api/marketplace/price-history/:nftId
- */
-app.get('/api/marketplace/price-history/:nftId', (req, res) => {
-  try {
-    const { nftId } = req.params;
-    const history = priceHistory.get(nftId) || [];
-
-    // Calculate statistics
-    const prices = history.filter(h => h.price).map(h => h.price);
-    const stats = {
-      count: prices.length,
-      averagePrice: prices.length > 0 ? prices.reduce((a, b) => a + b, 0) / prices.length : 0,
-      minPrice: prices.length > 0 ? Math.min(...prices) : 0,
-      maxPrice: prices.length > 0 ? Math.max(...prices) : 0,
-      lastPrice: prices.length > 0 ? prices[prices.length - 1] : 0
-    };
-
-    res.json({
-      success: true,
-      nftId,
-      history,
-      stats
-    });
-
-  } catch (error) {
-    console.error('Error fetching price history:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch price history'
-    });
-  }
-});
-
-// ============================================
 // TRANSACTION HISTORY
 // ============================================
 
@@ -871,31 +789,30 @@ app.get('/api/marketplace/price-history/:nftId', (req, res) => {
  * Get transaction history
  * GET /api/marketplace/transactions
  */
-app.get('/api/marketplace/transactions', (req, res) => {
+app.get('/api/marketplace/transactions', async (req, res) => {
   try {
     const { user, nftId, type, limit = 50 } = req.query;
 
-    let filteredTransactions = Array.from(transactions.values());
+    // Build query
+    const query = {};
 
     if (user) {
-      filteredTransactions = filteredTransactions.filter(
-        t => t.seller === user || t.buyer === user
-      );
+      query.$or = [{ seller: user }, { buyer: user }];
     }
 
     if (nftId) {
-      filteredTransactions = filteredTransactions.filter(t => t.nftId === nftId);
+      query.nftId = nftId;
     }
 
     if (type) {
-      filteredTransactions = filteredTransactions.filter(t => t.type === type);
+      query.type = type;
     }
 
-    // Sort by timestamp (newest first)
-    filteredTransactions.sort((a, b) => b.timestamp - a.timestamp);
-
-    // Limit results
-    filteredTransactions = filteredTransactions.slice(0, parseInt(limit));
+    // Get transactions sorted by timestamp (newest first)
+    const filteredTransactions = await MarketplaceTransaction.find(query)
+      .sort({ timestamp: -1 })
+      .limit(parseInt(limit))
+      .lean();
 
     res.json({
       success: true,
@@ -920,40 +837,73 @@ app.get('/api/marketplace/transactions', (req, res) => {
  * Get marketplace statistics
  * GET /api/marketplace/stats
  */
-app.get('/api/marketplace/stats', (req, res) => {
+app.get('/api/marketplace/stats', async (req, res) => {
   try {
-    const allListings = Array.from(listings.values());
-    const allOffers = Array.from(offers.values());
-    const allTransactions = Array.from(transactions.values());
+    // Get counts from each collection using aggregation
+    const [listingStats, offerStats, transactionStats] = await Promise.all([
+      Listing.aggregate([
+        {
+          $group: {
+            _id: null,
+            total: { $sum: 1 },
+            active: { $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] } },
+            sold: { $sum: { $cond: [{ $eq: ['$status', 'sold'] }, 1, 0] } },
+            cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } },
+            auctions: { $sum: { $cond: ['$auctionMode', 1, 0] } }
+          }
+        }
+      ]),
+      Offer.aggregate([
+        {
+          $group: {
+            _id: null,
+            total: { $sum: 1 },
+            pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
+            accepted: { $sum: { $cond: [{ $eq: ['$status', 'accepted'] }, 1, 0] } },
+            rejected: { $sum: { $cond: [{ $eq: ['$status', 'rejected'] }, 1, 0] } }
+          }
+        }
+      ]),
+      MarketplaceTransaction.aggregate([
+        {
+          $group: {
+            _id: null,
+            total: { $sum: 1 },
+            volume: { $sum: '$price' },
+            platformFees: { $sum: '$platformFee' },
+            averagePrice: { $avg: '$price' }
+          }
+        }
+      ])
+    ]);
 
-    // Calculate statistics
+    // Get trending data
+    const [topSellers, topBuyers, recentSales, mostViewed] = await Promise.all([
+      MarketplaceTransaction.aggregate([
+        { $group: { _id: '$seller', sales: { $sum: 1 }, volume: { $sum: '$price' } } },
+        { $sort: { volume: -1 } },
+        { $limit: 5 },
+        { $project: { seller: '$_id', sales: 1, volume: 1, _id: 0 } }
+      ]),
+      MarketplaceTransaction.aggregate([
+        { $group: { _id: '$buyer', purchases: { $sum: 1 }, spent: { $sum: '$price' } } },
+        { $sort: { spent: -1 } },
+        { $limit: 5 },
+        { $project: { buyer: '$_id', purchases: 1, spent: 1, _id: 0 } }
+      ]),
+      MarketplaceTransaction.find().sort({ timestamp: -1 }).limit(10).lean(),
+      Listing.find({ status: 'active' }).sort({ views: -1 }).limit(10).select('listingId nftId views price').lean()
+    ]);
+
     const stats = {
-      listings: {
-        total: allListings.length,
-        active: allListings.filter(l => l.status === LISTING_STATUS.ACTIVE).length,
-        sold: allListings.filter(l => l.status === LISTING_STATUS.SOLD).length,
-        cancelled: allListings.filter(l => l.status === LISTING_STATUS.CANCELLED).length,
-        auctions: allListings.filter(l => l.auctionMode).length
-      },
-      offers: {
-        total: allOffers.length,
-        pending: allOffers.filter(o => o.status === OFFER_STATUS.PENDING).length,
-        accepted: allOffers.filter(o => o.status === OFFER_STATUS.ACCEPTED).length,
-        rejected: allOffers.filter(o => o.status === OFFER_STATUS.REJECTED).length
-      },
-      transactions: {
-        total: allTransactions.length,
-        volume: allTransactions.reduce((sum, t) => sum + t.price, 0),
-        platformFees: allTransactions.reduce((sum, t) => sum + t.platformFee, 0),
-        averagePrice: allTransactions.length > 0
-          ? allTransactions.reduce((sum, t) => sum + t.price, 0) / allTransactions.length
-          : 0
-      },
+      listings: listingStats[0] || { total: 0, active: 0, sold: 0, cancelled: 0, auctions: 0 },
+      offers: offerStats[0] || { total: 0, pending: 0, accepted: 0, rejected: 0 },
+      transactions: transactionStats[0] || { total: 0, volume: 0, platformFees: 0, averagePrice: 0 },
       trending: {
-        topSellers: getTopSellers(allTransactions, 5),
-        topBuyers: getTopBuyers(allTransactions, 5),
-        recentSales: allTransactions.slice(0, 10),
-        mostViewed: getMostViewed(allListings, 10)
+        topSellers,
+        topBuyers,
+        recentSales,
+        mostViewed
       }
     };
 
@@ -976,24 +926,18 @@ app.get('/api/marketplace/stats', (req, res) => {
  * Get marketplace floor prices
  * GET /api/marketplace/floor-prices
  */
-app.get('/api/marketplace/floor-prices', (req, res) => {
+app.get('/api/marketplace/floor-prices', async (req, res) => {
   try {
-    const activeListings = Array.from(listings.values())
-      .filter(l => l.status === LISTING_STATUS.ACTIVE);
+    // Get overall floor price
+    const overallFloor = await Listing.findOne({ status: LISTING_STATUS.ACTIVE })
+      .sort({ price: 1 })
+      .select('price')
+      .lean();
 
-    // Group by rarity and find floor prices
     const floorPrices = {
-      overall: activeListings.length > 0 ? Math.min(...activeListings.map(l => l.price)) : 0,
+      overall: overallFloor ? overallFloor.price : 0,
       byRarity: {}
     };
-
-    const rarities = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
-    rarities.forEach(rarity => {
-      const rarityListings = activeListings.filter(l => l.rarity === rarity);
-      floorPrices.byRarity[rarity] = rarityListings.length > 0
-        ? Math.min(...rarityListings.map(l => l.price))
-        : 0;
-    });
 
     res.json({
       success: true,
@@ -1011,154 +955,14 @@ app.get('/api/marketplace/floor-prices', (req, res) => {
 });
 
 // ============================================
-// WATCHLIST ENDPOINTS
-// ============================================
-
-/**
- * Add NFT to watchlist
- * POST /api/marketplace/watchlist
- */
-app.post('/api/marketplace/watchlist', (req, res) => {
-  try {
-    const { userId, nftId } = req.body;
-
-    if (!userId || !nftId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required fields: userId, nftId'
-      });
-    }
-
-    let userWatchlist = watchlist.get(userId) || [];
-    if (!userWatchlist.includes(nftId)) {
-      userWatchlist.push(nftId);
-      watchlist.set(userId, userWatchlist);
-    }
-
-    res.json({
-      success: true,
-      message: 'Added to watchlist',
-      watchlist: userWatchlist
-    });
-
-  } catch (error) {
-    console.error('Error adding to watchlist:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to add to watchlist'
-    });
-  }
-});
-
-/**
- * Get user watchlist
- * GET /api/marketplace/watchlist/:userId
- */
-app.get('/api/marketplace/watchlist/:userId', (req, res) => {
-  try {
-    const { userId } = req.params;
-    const userWatchlist = watchlist.get(userId) || [];
-
-    res.json({
-      success: true,
-      watchlist: userWatchlist,
-      count: userWatchlist.length
-    });
-
-  } catch (error) {
-    console.error('Error fetching watchlist:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch watchlist'
-    });
-  }
-});
-
-/**
- * Remove from watchlist
- * DELETE /api/marketplace/watchlist
- */
-app.delete('/api/marketplace/watchlist', (req, res) => {
-  try {
-    const { userId, nftId } = req.body;
-
-    let userWatchlist = watchlist.get(userId) || [];
-    userWatchlist = userWatchlist.filter(id => id !== nftId);
-    watchlist.set(userId, userWatchlist);
-
-    res.json({
-      success: true,
-      message: 'Removed from watchlist',
-      watchlist: userWatchlist
-    });
-
-  } catch (error) {
-    console.error('Error removing from watchlist:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to remove from watchlist'
-    });
-  }
-});
-
-// ============================================
 // HELPER FUNCTIONS
 // ============================================
 
-function recordPriceHistory(nftId, entry) {
-  let history = priceHistory.get(nftId) || [];
-  history.push(entry);
-  priceHistory.set(nftId, history);
-}
-
-function getTopSellers(transactions, limit) {
-  const sellerStats = new Map();
-
-  transactions.forEach(t => {
-    const current = sellerStats.get(t.seller) || { sales: 0, volume: 0 };
-    current.sales += 1;
-    current.volume += t.price;
-    sellerStats.set(t.seller, current);
-  });
-
-  return Array.from(sellerStats.entries())
-    .map(([seller, stats]) => ({ seller, ...stats }))
-    .sort((a, b) => b.volume - a.volume)
-    .slice(0, limit);
-}
-
-function getTopBuyers(transactions, limit) {
-  const buyerStats = new Map();
-
-  transactions.forEach(t => {
-    const current = buyerStats.get(t.buyer) || { purchases: 0, spent: 0 };
-    current.purchases += 1;
-    current.spent += t.price;
-    buyerStats.set(t.buyer, current);
-  });
-
-  return Array.from(buyerStats.entries())
-    .map(([buyer, stats]) => ({ buyer, ...stats }))
-    .sort((a, b) => b.spent - a.spent)
-    .slice(0, limit);
-}
-
-function getMostViewed(listings, limit) {
-  return listings
-    .sort((a, b) => b.views - a.views)
-    .slice(0, limit)
-    .map(l => ({
-      listingId: l.listingId,
-      nftId: l.nftId,
-      views: l.views,
-      price: l.price
-    }));
-}
-
-async function broadcastToWebSocket(channel, data) {
+async function broadcastToWebSocket(channel, event, data) {
   try {
-    await axios.post(`${SERVICES.websocket}/api/broadcast`, {
+    await axios.post(`${SERVICES.websocket}/broadcast`, {
       channel,
+      event,
       data
     });
   } catch (error) {
@@ -1170,29 +974,59 @@ async function broadcastToWebSocket(channel, data) {
 // HEALTH CHECK
 // ============================================
 
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    timestamp: new Date(),
-    service: 'marketplace-service',
-    uptime: process.uptime(),
-    stats: {
-      listings: listings.size,
-      offers: offers.size,
-      transactions: transactions.size,
-      priceHistory: priceHistory.size
-    }
-  });
+app.get('/health', async (req, res) => {
+  try {
+    const isDbConnected = await db.healthCheck();
+    const [listingCount, offerCount, transactionCount] = await Promise.all([
+      Listing.countDocuments(),
+      Offer.countDocuments(),
+      MarketplaceTransaction.countDocuments()
+    ]);
+
+    res.json({
+      status: 'ok',
+      timestamp: new Date(),
+      service: 'marketplace-service',
+      uptime: process.uptime(),
+      database: isDbConnected ? 'connected' : 'disconnected',
+      stats: {
+        listings: listingCount,
+        offers: offerCount,
+        transactions: transactionCount
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      error: error.message
+    });
+  }
 });
 
 // ============================================
 // START SERVER
 // ============================================
 
-app.listen(PORT, () => {
-  console.log('╔════════════════════════════════════════════════╗');
-  console.log('║   WeatherNFT Marketplace Service Started      ║');
-  console.log('╚════════════════════════════════════════════════╝');
+async function startServer() {
+  try {
+    // Connect to MongoDB
+    console.log('📊 Connecting to MongoDB...');
+    await db.connect();
+    console.log('✅ MongoDB connected');
+
+    // Initialize indexes
+    await Promise.all([
+      Listing.createIndexes(),
+      Offer.createIndexes(),
+      MarketplaceTransaction.createIndexes()
+    ]);
+    console.log('✅ Database indexes initialized');
+
+    // Start server
+    app.listen(PORT, () => {
+      console.log('╔════════════════════════════════════════════════╗');
+      console.log('║   WeatherNFT Marketplace Service Started      ║');
+      console.log('╚════════════════════════════════════════════════╝');
   console.log(`🏪 Marketplace Service: http://localhost:${PORT}`);
   console.log('');
   console.log('Available endpoints:');
@@ -1204,18 +1038,37 @@ app.listen(PORT, () => {
   console.log('  POST   /api/marketplace/offers              - Create offer/bid');
   console.log('  GET    /api/marketplace/offers              - Get offers');
   console.log('  POST   /api/marketplace/offers/:id/accept   - Accept offer');
-  console.log('  POST   /api/marketplace/offers/:id/reject   - Reject offer');
-  console.log('  DELETE /api/marketplace/offers/:id          - Cancel offer');
-  console.log('  GET    /api/marketplace/price-history/:id   - Get price history');
-  console.log('  GET    /api/marketplace/transactions        - Get transactions');
-  console.log('  GET    /api/marketplace/stats               - Marketplace stats');
-  console.log('  GET    /api/marketplace/floor-prices        - Floor prices');
-  console.log('  POST   /api/marketplace/watchlist           - Add to watchlist');
-  console.log('  GET    /api/marketplace/watchlist/:userId   - Get watchlist');
-  console.log('  DELETE /api/marketplace/watchlist           - Remove from watchlist');
-  console.log('  GET    /health                              - Health check');
-  console.log('');
-  console.log('✅ Ready to handle marketplace operations!');
+      console.log('  POST   /api/marketplace/offers/:id/reject   - Reject offer');
+      console.log('  DELETE /api/marketplace/offers/:id          - Cancel offer');
+      console.log('  GET    /api/marketplace/transactions        - Get transactions');
+      console.log('  GET    /api/marketplace/stats               - Marketplace stats');
+      console.log('  GET    /api/marketplace/floor-prices        - Floor prices');
+      console.log('  GET    /health                              - Health check');
+      console.log('');
+      console.log('✅ Ready to handle marketplace operations!');
+      console.log('📦 MongoDB collections ready: Listing, Offer, MarketplaceTransaction');
+    });
+
+  } catch (error) {
+    console.error('❌ Failed to start marketplace service:', error);
+    process.exit(1);
+  }
+}
+
+// Handle graceful shutdown
+process.on('SIGINT', async () => {
+  console.log('\n⚠️  Shutting down marketplace service...');
+  await db.disconnect();
+  process.exit(0);
 });
+
+process.on('SIGTERM', async () => {
+  console.log('\n⚠️  Shutting down marketplace service...');
+  await db.disconnect();
+  process.exit(0);
+});
+
+// Start the server
+startServer();
 
 module.exports = app;
