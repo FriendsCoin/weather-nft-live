@@ -163,10 +163,7 @@ app.post('/api/marketplace/listings', async (req, res) => {
     });
 
     // Broadcast listing event
-    broadcastToWebSocket('marketplace_listing', {
-      type: 'new_listing',
-      listing
-    });
+    broadcastToWebSocket('marketplace_listing', 'new_listing', { listing });
 
   } catch (error) {
     console.error('Error creating listing:', error);
@@ -356,8 +353,7 @@ app.delete('/api/marketplace/listings/:listingId', (req, res) => {
     });
 
     // Broadcast cancellation
-    broadcastToWebSocket('marketplace_listing', {
-      type: 'listing_cancelled',
+    broadcastToWebSocket('marketplace_listing', 'listing_cancelled', {
       listingId,
       nftId: listing.nftId
     });
@@ -469,8 +465,7 @@ app.post('/api/marketplace/buy', async (req, res) => {
     });
 
     // Broadcast sale event
-    broadcastToWebSocket('marketplace_sale', {
-      type: 'nft_sold',
+    broadcastToWebSocket('marketplace_sale', 'nft_sold', {
       transaction,
       nftId: listing.nftId
     });
@@ -570,8 +565,8 @@ app.post('/api/marketplace/offers', (req, res) => {
     });
 
     // Broadcast offer event
-    broadcastToWebSocket('marketplace_offer', {
-      type: listing?.auctionMode ? 'new_bid' : 'new_offer',
+    const eventType = listing?.auctionMode ? 'new_bid' : 'new_offer';
+    broadcastToWebSocket('marketplace_offer', eventType, {
       offer,
       listing
     });
@@ -729,8 +724,7 @@ app.post('/api/marketplace/offers/:offerId/accept', (req, res) => {
       transaction
     });
 
-    broadcastToWebSocket('marketplace_sale', {
-      type: 'offer_accepted',
+    broadcastToWebSocket('marketplace_sale', 'offer_accepted', {
       transaction,
       offer
     });
@@ -1155,10 +1149,11 @@ function getMostViewed(listings, limit) {
     }));
 }
 
-async function broadcastToWebSocket(channel, data) {
+async function broadcastToWebSocket(channel, event, data) {
   try {
-    await axios.post(`${SERVICES.websocket}/api/broadcast`, {
+    await axios.post(`${SERVICES.websocket}/broadcast`, {
       channel,
+      event,
       data
     });
   } catch (error) {
