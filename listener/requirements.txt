@@ -90,6 +90,12 @@ python-socketio>=5.10.0     # Socket.IO client/server
 sounddevice>=0.4.6          # Real-time audio output for feedback cues
 
 # ============================================================
+# OSC INTEGRATION (Mind Monitor, TouchDesigner)
+# ============================================================
+python-osc>=1.8.0           # OSC protocol for Mind Monitor and TouchDesigner
+pyserial>=3.5               # Serial communication for LED control (Arduino/ESP32)
+
+# ============================================================
 # UTILITIES
 # ============================================================
 python-dotenv>=1.0.0        # Environment variables (for API keys)
