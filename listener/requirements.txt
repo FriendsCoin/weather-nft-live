@@ -16,6 +16,13 @@ torch>=2.1.0                # PyTorch for VAE
 torchvision>=0.16.0         # Vision utilities
 scikit-learn>=1.3.0         # ML utilities, train/val splits
 
+# Advanced Training Tools (for custom training)
+tensorboard>=2.15.0         # Training visualization & experiment tracking
+optuna>=3.5.0               # Hyperparameter optimization
+pytorch-lightning>=2.1.0    # High-level PyTorch training framework
+torchmetrics>=1.2.0         # Metrics for PyTorch models
+torchinfo>=1.8.0            # Model architecture summary
+
 # ============================================================
 # DATA HANDLING & STORAGE
 # ============================================================
@@ -101,6 +108,12 @@ flask-socketio>=5.3.0       # WebSocket support for real-time data
 flask-cors>=4.0.0           # CORS support
 python-socketio>=5.10.0     # Socket.IO client/server
 sounddevice>=0.4.6          # Real-time audio output for feedback cues
+
+# ============================================================
+# OSC INTEGRATION (Mind Monitor, TouchDesigner)
+# ============================================================
+python-osc>=1.8.0           # OSC protocol for Mind Monitor and TouchDesigner
+pyserial>=3.5               # Serial communication for LED control (Arduino/ESP32)
 
 # ============================================================
 # UTILITIES
