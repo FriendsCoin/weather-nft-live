@@ -16,6 +16,13 @@ torch>=2.1.0                # PyTorch for VAE
 torchvision>=0.16.0         # Vision utilities
 scikit-learn>=1.3.0         # ML utilities, train/val splits
 
+# Advanced Training Tools (for custom training)
+tensorboard>=2.15.0         # Training visualization & experiment tracking
+optuna>=3.5.0               # Hyperparameter optimization
+pytorch-lightning>=2.1.0    # High-level PyTorch training framework
+torchmetrics>=1.2.0         # Metrics for PyTorch models
+torchinfo>=1.8.0            # Model architecture summary
+
 # ============================================================
 # DATA HANDLING & STORAGE
 # ============================================================
