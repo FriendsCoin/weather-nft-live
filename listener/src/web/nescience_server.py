@@ -195,7 +195,8 @@ hub = NESCIENCEHub()
 @app.route('/')
 def index():
     """Main dashboard"""
-    return render_template('nescience_hub.html')
+    # Use v2 template with parameter forms
+    return render_template('nescience_hub_v2.html')
 
 
 @app.route('/api/status')
@@ -243,7 +244,8 @@ def api_start_session():
     data = request.json
     use_mock = data.get('mock', False)
     duration = data.get('duration', 600)
-    touchdesigner = data.get('touchdesigner', False)
+    visualize = data.get('visualize', False)
+    touchdesigner = data.get('touchdesigner', None)  # Can be address string or None
 
     # Build command
     cmd = ['python', 'scripts/nescience_session.py', '--duration', str(duration)]
@@ -251,8 +253,11 @@ def api_start_session():
     if use_mock:
         cmd.append('--mock')
 
+    if visualize:
+        cmd.append('--visualize')
+
     if touchdesigner:
-        cmd.extend(['--touchdesigner', 'localhost:9000'])
+        cmd.extend(['--touchdesigner', touchdesigner])
 
     # Start in background
     try:
@@ -276,12 +281,15 @@ def api_start_autonomous():
         }), 400
 
     data = request.json
-    touchdesigner = data.get('touchdesigner', False)
+    touchdesigner = data.get('touchdesigner', None)  # Address or None
+    update_rate = data.get('update_rate', 2.0)
 
     cmd = ['python', 'scripts/autonomous_meditation.py']
 
     if touchdesigner:
-        cmd.extend(['--touchdesigner', 'localhost:9000'])
+        cmd.extend(['--touchdesigner', touchdesigner])
+
+    cmd.extend(['--update-rate', str(update_rate)])
 
     try:
         subprocess.Popen(cmd, cwd=Path(__file__).parent.parent.parent)
