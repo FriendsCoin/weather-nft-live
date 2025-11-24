@@ -38,9 +38,38 @@ python scripts/setup.py --quick
 
 ---
 
+## Step 1.5: Start Dashboard Hub (RECOMMENDED)
+
+**The easiest way to use NESCIENCE is through the web dashboard:**
+
+```bash
+# Start the dashboard
+python start_dashboard.py
+
+# Open in browser: http://localhost:8080
+```
+
+**The dashboard provides:**
+- 🎮 One-click session launching
+- 📊 Character evolution visualization
+- 🧘 Real-time status monitoring
+- 🎯 Baseline calibration
+- 🎭 Autonomous meditation mode
+- 📜 Session history
+
+**Use the dashboard for all interactions, or continue with CLI below.**
+
+---
+
 ## Step 2: First Session - Mock Data (2 minutes)
 
-**Test without hardware to ensure everything works:**
+**Via Dashboard (recommended):**
+1. Click "Start Meditation Session"
+2. Choose "OK" for mock data
+3. Enter duration: 300 seconds
+4. Watch terminal for output
+
+**Via CLI:**
 
 ```bash
 # 5-minute test session

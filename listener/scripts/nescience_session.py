@@ -20,9 +20,13 @@ Usage:
     # With TouchDesigner integration
     python scripts/nescience_session.py --touchdesigner localhost:9000
 
+    # With native visualization (matplotlib, no TouchDesigner needed)
+    python scripts/nescience_session.py --visualize --mock --duration 600
+
 Options:
     --duration SECONDS     Session duration in seconds
     --mock                 Use mock data instead of Mind Monitor
+    --visualize            Show real-time matplotlib visualization (no TD needed!)
     --mind-monitor-port    Port for Mind Monitor OSC (default: 5000)
     --touchdesigner HOST:PORT  Send to TouchDesigner (default: localhost:9000)
     --save-session         Save session data for post-processing
@@ -58,7 +62,8 @@ class NESCIENCESession:
         touchdesigner_host: str = 'localhost',
         touchdesigner_port: int = 9000,
         character_state_file: str = "data/character_state.json",
-        use_mock: bool = False
+        use_mock: bool = False,
+        visualize: bool = False
     ):
         """
         Initialize NESCIENCE session
@@ -70,6 +75,7 @@ class NESCIENCESession:
             touchdesigner_port: TouchDesigner port
             character_state_file: Path to character state JSON
             use_mock: Use mock data instead of real EEG
+            visualize: Show native matplotlib visualization
         """
 
         print("\n" + "="*60)
@@ -80,6 +86,7 @@ class NESCIENCESession:
 
         # Components
         self.use_mock = use_mock
+        self.visualize = visualize
 
         if not use_mock:
             self.muse_receiver = MindMonitorReceiver(
@@ -103,6 +110,18 @@ class NESCIENCESession:
             )
         else:
             self.td_sender = None
+
+        # Native visualization (optional)
+        self.display = None
+        if visualize:
+            try:
+                from visualization.native_display import NativeDisplay
+                self.display = NativeDisplay(window_size=200)
+                print("📊 Native visualization enabled\n")
+            except ImportError as e:
+                print(f"⚠️  Could not load visualization: {e}")
+                print("   Install matplotlib: pip install matplotlib")
+                self.display = None
 
         # Session tracking
         self.session_start = None
@@ -200,9 +219,25 @@ class NESCIENCESession:
         # Poetic line
         poetry = interpretation['primary']
 
-        # Display
-        display = f"{state_str} {quality_str} | {poetry}"
-        print(display[:100], end='', flush=True)
+        # Terminal display
+        terminal_display = f"{state_str} {quality_str} | {poetry}"
+        print(terminal_display[:100], end='', flush=True)
+
+        # Native visualization display
+        if self.display:
+            # Get band data from last data point
+            if self.session_data:
+                last_eeg = self.session_data[-1]['eeg']
+                self.display.update_state(
+                    state=signature.state.value,
+                    intensity=signature.intensity,
+                    alpha=last_eeg['alpha'],
+                    beta=last_eeg['beta'],
+                    theta=last_eeg['theta'] or 0.5,
+                    delta=last_eeg['delta'] or 0.5,
+                    awakening=self.character.state.awakening_level,
+                    poetry=poetry
+                )
 
     def _send_to_touchdesigner(self, signature, interpretation, data: MuseData):
         """Send state to TouchDesigner for visuals"""
@@ -251,6 +286,12 @@ class NESCIENCESession:
         print(self.character.get_character_description())
         print(f"\n{'='*60}\n")
 
+        # Start native visualization if enabled
+        if self.display:
+            print("Starting visualization window...\n")
+            self.display.start()
+            time.sleep(1)  # Let matplotlib initialize
+
         # Start receiving
         self.session_start = time.time()
 
@@ -282,6 +323,16 @@ class NESCIENCESession:
 
         # Process session
         self._process_session()
+
+        # Stop visualization (if enabled)
+        if self.display:
+            print("\n✓ Visualization window will remain open")
+            print("  Close window or press Ctrl+C to exit\n")
+            try:
+                import matplotlib.pyplot as plt
+                plt.pause(0.1)  # Keep window responsive
+            except:
+                pass
 
     def _process_session(self):
         """Post-session processing"""
@@ -355,6 +406,12 @@ Anicca - all states arise and pass.
     )
 
     parser.add_argument(
+        "--visualize",
+        action="store_true",
+        help="Show real-time matplotlib visualization (no TouchDesigner needed!)"
+    )
+
+    parser.add_argument(
         "--mind-monitor-port",
         type=int,
         default=5000,
@@ -396,7 +453,8 @@ Anicca - all states arise and pass.
         touchdesigner_host=td_host,
         touchdesigner_port=td_port,
         character_state_file=args.character_state,
-        use_mock=args.mock
+        use_mock=args.mock,
+        visualize=args.visualize
     )
 
     # Start
