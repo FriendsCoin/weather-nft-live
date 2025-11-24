@@ -32,10 +32,10 @@ No external software required!
 
 ```bash
 # Mock data (testing)
-python scripts/nescience_session_visual.py --mock --duration 600
+python scripts/nescience_session.py --visualize --mock --duration 600
 
 # Real Muse S
-python scripts/nescience_session_visual.py --duration 1200
+python scripts/nescience_session.py --visualize --duration 1200
 ```
 
 ### Screenshot Description
@@ -301,7 +301,7 @@ Projection output
 
 ```bash
 # Test with visualization
-python scripts/nescience_session_visual.py --mock --duration 300
+python scripts/nescience_session.py --visualize --mock --duration 300
 ```
 
 **Why:** Immediate visual feedback, no setup, easy debugging.
@@ -314,7 +314,7 @@ python scripts/nescience_session_visual.py --mock --duration 300
 
 **1. Native (If you like visuals):**
 ```bash
-python scripts/nescience_session_visual.py --duration 1200
+python scripts/nescience_session.py --visualize --duration 1200
 ```
 
 **2. Dashboard (If you want history):**
@@ -361,7 +361,7 @@ python scripts/autonomous_meditation.py --touchdesigner localhost:9000
 
 ```bash
 # Visitors see real-time matplotlib visualization
-python scripts/nescience_session_visual.py --duration 600
+python scripts/nescience_session.py --visualize --duration 600
 ```
 
 ---
@@ -392,7 +392,7 @@ python scripts/nescience_session.py --duration 1200 2>&1 | tee session_log.txt
 python start_dashboard.py
 
 # Terminal 2: Session with native visualization
-python scripts/nescience_session_visual.py --mock --duration 600
+python scripts/nescience_session.py --visualize --mock --duration 600
 
 # Both show same session!
 ```
@@ -415,7 +415,7 @@ python scripts/nescience_session.py --touchdesigner localhost:9000
 
 ### Start Native Visualization
 ```bash
-python scripts/nescience_session_visual.py --mock --duration 600
+python scripts/nescience_session.py --visualize --mock --duration 600
 ```
 
 ### Start Dashboard
@@ -475,7 +475,7 @@ Check:
 **For most users:** Start with **Native Matplotlib** for testing, then move to **TouchDesigner** for performances if needed.
 
 **Simplest path:**
-1. Test with Native: `python scripts/nescience_session_visual.py --mock --duration 300`
+1. Test with Native: `python scripts/nescience_session.py --visualize --mock --duration 300`
 2. Verify hardware with Terminal: `python scripts/nescience_session.py --duration 600`
 3. Use Dashboard for monitoring: `python start_dashboard.py`
 4. Add TouchDesigner only if needed for performance
@@ -486,7 +486,7 @@ Check:
 
 **Next Steps:**
 
-1. Try native visualization: `python scripts/nescience_session_visual.py --mock --duration 300`
+1. Try native visualization: `python scripts/nescience_session.py --visualize --mock --duration 300`
 2. If it works, you're ready for real sessions!
 3. Add TouchDesigner later only if needed for performance/gallery
 
