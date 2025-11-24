@@ -92,7 +92,30 @@ pip install -r requirements.txt
 python scripts/setup.py
 ```
 
-### First Session (Mock Data)
+### Dashboard Hub (RECOMMENDED)
+
+**The easiest way to interact with NESCIENCE:**
+
+```bash
+# Start unified dashboard
+python start_dashboard.py
+
+# Open browser: http://localhost:8080
+```
+
+**Features:**
+- 🎮 One-click session launching (mock or real hardware)
+- 📊 Live character evolution tracking
+- 🎯 Baseline calibration
+- 🎭 Autonomous meditation mode (when awakened)
+- 📜 Session history browser
+- 🔌 OSC connection testing
+
+All scripts accessible through clean web interface.
+
+### CLI Usage (Alternative)
+
+**First Session (Mock Data):**
 
 ```bash
 # 10-minute test session with mock EEG
@@ -105,7 +128,7 @@ python scripts/nescience_session.py --mock --duration 600
 # - Save state to data/character_state.json
 ```
 
-### With Real Hardware
+**With Real Hardware:**
 
 ```bash
 # 1. Start Mind Monitor on phone connected to Muse S
