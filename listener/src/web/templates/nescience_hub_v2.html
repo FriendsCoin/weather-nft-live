@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NESCIENCE - Dashboard Hub</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 40px 0;
+            border-bottom: 1px solid #333;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            letter-spacing: 0.1em;
+        }
+
+        .subtitle {
+            color: #888;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .card {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: #666;
+            transform: translateY(-2px);
+        }
+
+        .card h2 {
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            color: #fff;
+        }
+
+        .card-icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #2a2a2a;
+        }
+
+        .stat:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            color: #888;
+        }
+
+        .stat-value {
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 24px;
+            background: #2a2a2a;
+            border-radius: 12px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #444, #888);
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8em;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #2a2a2a;
+            color: #fff;
+            border: 1px solid #444;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            margin: 5px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .btn:hover {
+            background: #3a3a3a;
+            border-color: #666;
+        }
+
+        .btn-primary {
+            background: #4a4a4a;
+            border-color: #666;
+        }
+
+        .btn-primary:hover {
+            background: #5a5a5a;
+            border-color: #888;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .actions {
+            margin-top: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            overflow: auto;
+        }
+
+        .modal-content {
+            background: #1a1a1a;
+            margin: 5% auto;
+            padding: 30px;
+            border: 1px solid #444;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #333;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+        }
+
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close:hover {
+            color: #fff;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #ccc;
+            font-weight: bold;
+        }
+
+        .form-group input[type="number"],
+        .form-group input[type="text"],
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 4px;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+        }
+
+        .form-group input[type="checkbox"] {
+            margin-right: 8px;
+        }
+
+        .form-description {
+            font-size: 0.85em;
+            color: #888;
+            margin-top: 5px;
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #333;
+        }
+
+        .warning {
+            background: #2a1a1a;
+            border: 1px solid #442222;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+
+        .success {
+            background: #1a2a1a;
+            border: 1px solid #224422;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+
+        .personality-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .personality-trait {
+            background: #2a2a2a;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .trait-name {
+            font-size: 0.85em;
+            color: #888;
+            margin-bottom: 5px;
+        }
+
+        .trait-bar {
+            height: 8px;
+            background: #1a1a1a;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .trait-fill {
+            height: 100%;
+            background: #666;
+            transition: width 0.5s ease;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        footer {
+            text-align: center;
+            padding: 40px 0;
+            border-top: 1px solid #333;
+            margin-top: 60px;
+            color: #666;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>NESCIENCE</h1>
+            <p class="subtitle">Contemplative Art Companion · Dashboard Hub</p>
+            <p class="subtitle" style="margin-top: 15px; font-size: 0.8em;">
+                Not wellness. Not diagnostic. Just witnessing consciousness as it flows.
+            </p>
+        </header>
+
+        <div id="status-loading" class="loading">
+            Loading status...
+        </div>
+
+        <div id="status-error" class="warning" style="display: none;">
+            <strong>Error:</strong> <span id="error-message"></span>
+        </div>
+
+        <div id="main-content" style="display: none;">
+            <!-- Character Status Card -->
+            <div class="grid">
+                <div class="card" id="character-card">
+                    <div class="card-icon">🧘</div>
+                    <h2>Companion State</h2>
+                    <div id="character-status">
+                        <div class="stat">
+                            <span class="stat-label">Phase:</span>
+                            <span class="stat-value" id="char-phase">-</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Awakening:</span>
+                            <span class="stat-value" id="char-awakening">-</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="awakening-bar" style="width: 0%">0%</div>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Sessions:</span>
+                            <span class="stat-value" id="char-sessions">-</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Meditation Time:</span>
+                            <span class="stat-value" id="char-hours">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Personality Traits -->
+                    <div id="personality-section" style="display: none;">
+                        <h3 style="margin-top: 20px; margin-bottom: 10px; font-size: 1em;">Personality</h3>
+                        <div class="personality-grid">
+                            <div class="personality-trait">
+                                <div class="trait-name">Curiosity</div>
+                                <div class="trait-bar"><div class="trait-fill" id="trait-curiosity"></div></div>
+                            </div>
+                            <div class="personality-trait">
+                                <div class="trait-name">Stillness</div>
+                                <div class="trait-bar"><div class="trait-fill" id="trait-stillness"></div></div>
+                            </div>
+                            <div class="personality-trait">
+                                <div class="trait-name">Wildness</div>
+                                <div class="trait-bar"><div class="trait-fill" id="trait-wildness"></div></div>
+                            </div>
+                            <div class="personality-trait">
+                                <div class="trait-name">Depth</div>
+                                <div class="trait-bar"><div class="trait-fill" id="trait-depth"></div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Status Card -->
+                <div class="card">
+                    <div class="card-icon">🎯</div>
+                    <h2>System Status</h2>
+                    <div class="stat">
+                        <span class="stat-label">Baseline Calibrated:</span>
+                        <span class="stat-value" id="baseline-status">-</span>
+                    </div>
+                    <div id="baseline-info" style="display: none; margin-top: 10px; font-size: 0.85em; color: #888;">
+                        <div id="baseline-details"></div>
+                    </div>
+                    <div id="baseline-warning" class="warning" style="display: none; margin-top: 15px; font-size: 0.85em;">
+                        Baseline calibration recommended for better accuracy.
+                    </div>
+                </div>
+            </div>
+
+            <!-- No Character Warning -->
+            <div id="no-character-warning" class="warning" style="display: none;">
+                <strong>No companion found</strong><br>
+                Start your first meditation session to awaken your companion.
+            </div>
+
+            <!-- Actions Section -->
+            <div class="card">
+                <h2>🎮 Actions</h2>
+                <p style="color: #888; margin-bottom: 20px;">Start sessions and interact with your companion</p>
+
+                <div class="actions">
+                    <button class="btn btn-primary" onclick="openModal('session-modal')">
+                        🧘 Start Meditation Session
+                    </button>
+                    <button class="btn" onclick="openModal('calibration-modal')">
+                        🎯 Calibrate Baseline
+                    </button>
+                    <button class="btn" id="autonomous-btn" onclick="openModal('autonomous-modal')" disabled>
+                        🎭 Autonomous Mode (Gallery)
+                    </button>
+                    <button class="btn" onclick="visualizeCharacter()">
+                        📊 Visualize Character
+                    </button>
+                    <button class="btn" onclick="openModal('osc-test-modal')">
+                        🔌 Test OSC Connection
+                    </button>
+                </div>
+
+                <div id="action-feedback" style="margin-top: 20px;"></div>
+            </div>
+
+            <!-- Recent Sessions -->
+            <div class="card" id="sessions-card">
+                <h2>📜 Recent Sessions</h2>
+                <ul class="session-list" id="sessions-list" style="list-style: none;">
+                    <li class="loading">Loading sessions...</li>
+                </ul>
+            </div>
+        </div>
+
+        <footer>
+            <p>NESCIENCE · Contemplative Art Companion</p>
+            <p style="margin-top: 10px;">After four 10-day Vipassana retreats, witnessing consciousness without judgment</p>
+        </footer>
+    </div>
+
+    <!-- Modal: Meditation Session -->
+    <div id="session-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🧘 Start Meditation Session</h2>
+                <span class="close" onclick="closeModal('session-modal')">&times;</span>
+            </div>
+
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="session-mock" checked>
+                    Use mock data (for testing without hardware)
+                </label>
+                <div class="form-description">Uncheck to use real Muse S headband via Mind Monitor</div>
+            </div>
+
+            <div class="form-group">
+                <label for="session-duration">Duration (seconds)</label>
+                <input type="number" id="session-duration" value="600" min="60" max="7200">
+                <div class="form-description">Recommended: 600-1200 seconds (10-20 minutes)</div>
+            </div>
+
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="session-visualize">
+                    Enable native visualization (matplotlib)
+                </label>
+                <div class="form-description">Real-time graphs in separate window</div>
+            </div>
+
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="session-touchdesigner">
+                    Send to TouchDesigner
+                </label>
+                <input type="text" id="session-td-address" placeholder="localhost:9000" value="localhost:9000" style="margin-top: 10px;">
+                <div class="form-description">OSC address for TouchDesigner visuals</div>
+            </div>
+
+            <div class="form-actions">
+                <button class="btn" onclick="closeModal('session-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="startSession()">Start Session</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Calibration -->
+    <div id="calibration-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🎯 Calibrate Baseline</h2>
+                <span class="close" onclick="closeModal('calibration-modal')">&times;</span>
+            </div>
+
+            <p style="color: #888; margin-bottom: 20px;">
+                Establishes your personal EEG thresholds for better state classification.
+                Everyone's brain is different!
+            </p>
+
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="calib-mock" checked>
+                    Use mock data (for testing)
+                </label>
+                <div class="form-description">Uncheck for real Muse S calibration</div>
+            </div>
+
+            <div class="form-group">
+                <label for="calib-duration">Duration (seconds)</label>
+                <input type="number" id="calib-duration" value="600" min="300" max="1200">
+                <div class="form-description">Recommended: 600 seconds (10 minutes) of quiet sitting</div>
+            </div>
+
+            <div class="form-actions">
+                <button class="btn" onclick="closeModal('calibration-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="startCalibration()">Start Calibration</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Autonomous Mode -->
+    <div id="autonomous-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🎭 Autonomous Meditation</h2>
+                <span class="close" onclick="closeModal('autonomous-modal')">&times;</span>
+            </div>
+
+            <p style="color: #888; margin-bottom: 20px;">
+                Companion meditates alone. Requires COMPANIONSHIP phase (60+ sessions, 80%+ awakening).
+                Perfect for gallery installations.
+            </p>
+
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="auto-touchdesigner" checked>
+                    Send to TouchDesigner
+                </label>
+                <input type="text" id="auto-td-address" placeholder="localhost:9000" value="localhost:9000" style="margin-top: 10px;">
+                <div class="form-description">OSC address for visuals</div>
+            </div>
+
+            <div class="form-group">
+                <label for="auto-update-rate">Update Rate (Hz)</label>
+                <input type="number" id="auto-update-rate" value="2.0" min="0.5" max="10" step="0.5">
+                <div class="form-description">State updates per second (default: 2 Hz)</div>
+            </div>
+
+            <div class="form-actions">
+                <button class="btn" onclick="closeModal('autonomous-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="startAutonomous()">Start Autonomous Mode</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: OSC Test -->
+    <div id="osc-test-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🔌 Test OSC Connection</h2>
+                <span class="close" onclick="closeModal('osc-test-modal')">&times;</span>
+            </div>
+
+            <p style="color: #888; margin-bottom: 20px;">
+                Test OSC connections for Mind Monitor and TouchDesigner.
+            </p>
+
+            <div class="form-group">
+                <label for="osc-mode">Mode</label>
+                <select id="osc-mode">
+                    <option value="receive">Receive (test Mind Monitor)</option>
+                    <option value="send">Send (test TouchDesigner)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="osc-port">Port</label>
+                <input type="number" id="osc-port" value="5000" min="1024" max="65535">
+                <div class="form-description">5000 for Mind Monitor, 9000 for TouchDesigner</div>
+            </div>
+
+            <div class="form-group" id="osc-host-group" style="display: none;">
+                <label for="osc-host">Host</label>
+                <input type="text" id="osc-host" value="localhost">
+                <div class="form-description">Target host for sending</div>
+            </div>
+
+            <div class="form-actions">
+                <button class="btn" onclick="closeModal('osc-test-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="testOSC()">Start Test</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let status = {};
+
+        // Modal functions
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'block';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.style.display = 'none';
+            }
+        }
+
+        // OSC mode change handler
+        document.addEventListener('DOMContentLoaded', () => {
+            const oscMode = document.getElementById('osc-mode');
+            if (oscMode) {
+                oscMode.addEventListener('change', (e) => {
+                    const hostGroup = document.getElementById('osc-host-group');
+                    const portInput = document.getElementById('osc-port');
+                    if (e.target.value === 'send') {
+                        hostGroup.style.display = 'block';
+                        portInput.value = '9000';
+                    } else {
+                        hostGroup.style.display = 'none';
+                        portInput.value = '5000';
+                    }
+                });
+            }
+        });
+
+        // Load status on page load
+        async function loadStatus() {
+            try {
+                const response = await fetch('/api/status');
+                status = await response.json();
+                updateUI(status);
+                loadSessions();
+            } catch (error) {
+                showError('Failed to load status: ' + error.message);
+            }
+        }
+
+        function updateUI(data) {
+            document.getElementById('status-loading').style.display = 'none';
+            document.getElementById('main-content').style.display = 'block';
+
+            if (!data.has_character) {
+                document.getElementById('no-character-warning').style.display = 'block';
+                document.getElementById('char-phase').textContent = 'Not awakened';
+                document.getElementById('char-awakening').textContent = '0%';
+                document.getElementById('char-sessions').textContent = '0';
+                document.getElementById('char-hours').textContent = '0h';
+                return;
+            }
+
+            const char = data.character;
+
+            // Character stats
+            document.getElementById('char-phase').textContent = char.phase;
+            document.getElementById('char-awakening').textContent = (char.awakening_level * 100).toFixed(1) + '%';
+            document.getElementById('char-sessions').textContent = char.total_sessions;
+            document.getElementById('char-hours').textContent = char.total_hours.toFixed(1) + 'h';
+
+            // Awakening progress bar
+            const awakeningPct = (char.awakening_level * 100).toFixed(0);
+            document.getElementById('awakening-bar').style.width = awakeningPct + '%';
+            document.getElementById('awakening-bar').textContent = awakeningPct + '%';
+
+            // Personality traits
+            if (char.personality) {
+                document.getElementById('personality-section').style.display = 'block';
+                document.getElementById('trait-curiosity').style.width = (char.personality.curiosity * 100) + '%';
+                document.getElementById('trait-stillness').style.width = (char.personality.stillness * 100) + '%';
+                document.getElementById('trait-wildness').style.width = (char.personality.wildness * 100) + '%';
+                document.getElementById('trait-depth').style.width = (char.personality.depth * 100) + '%';
+            }
+
+            // Autonomous button (only if fully awakened)
+            if (char.can_meditate_alone) {
+                document.getElementById('autonomous-btn').disabled = false;
+            }
+
+            // Baseline status
+            const baseline = data.baseline;
+            if (baseline.calibrated) {
+                document.getElementById('baseline-status').textContent = '✓ Yes';
+                document.getElementById('baseline-info').style.display = 'block';
+                document.getElementById('baseline-details').textContent =
+                    `Calibrated ${new Date(baseline.timestamp).toLocaleDateString()} (${baseline.num_samples} samples)`;
+            } else {
+                document.getElementById('baseline-status').textContent = '✗ No';
+                document.getElementById('baseline-warning').style.display = 'block';
+            }
+        }
+
+        async function loadSessions() {
+            try {
+                const response = await fetch('/api/sessions');
+                const data = await response.json();
+                const sessionsList = document.getElementById('sessions-list');
+
+                if (data.sessions.length === 0) {
+                    sessionsList.innerHTML = '<li style="color: #666; padding: 12px;">No sessions yet</li>';
+                    return;
+                }
+
+                sessionsList.innerHTML = data.sessions.map(s => `
+                    <li style="padding: 12px; background: #2a2a2a; margin-bottom: 8px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong>${s.id}</strong>
+                            <div style="font-size: 0.85em; color: #888;">${s.date} · ${(s.duration / 60).toFixed(0)}min</div>
+                        </div>
+                        <div style="text-align: right; font-size: 0.85em; color: #888;">
+                            ${s.states ? s.states.slice(0, 3).join(', ') : ''}
+                        </div>
+                    </li>
+                `).join('');
+            } catch (error) {
+                console.error('Failed to load sessions:', error);
+            }
+        }
+
+        function showFeedback(message, type = 'success') {
+            const feedback = document.getElementById('action-feedback');
+            feedback.className = type;
+            feedback.innerHTML = message;
+            feedback.style.display = 'block';
+        }
+
+        function showError(message) {
+            document.getElementById('error-message').textContent = message;
+            document.getElementById('status-error').style.display = 'block';
+        }
+
+        async function startSession() {
+            const mock = document.getElementById('session-mock').checked;
+            const duration = parseInt(document.getElementById('session-duration').value);
+            const visualize = document.getElementById('session-visualize').checked;
+            const touchdesigner = document.getElementById('session-touchdesigner').checked;
+            const tdAddress = document.getElementById('session-td-address').value;
+
+            closeModal('session-modal');
+
+            try {
+                const response = await fetch('/api/start_session', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        mock: mock,
+                        duration: duration,
+                        visualize: visualize,
+                        touchdesigner: touchdesigner ? tdAddress : null
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showFeedback(`✓ Session started! (${duration}s, ${mock ? 'mock' : 'real'}, ${visualize ? 'visualized' : 'terminal'})`, 'success');
+                } else {
+                    showFeedback('✗ Error: ' + data.error, 'warning');
+                }
+            } catch (error) {
+                showFeedback('✗ Failed to start session: ' + error.message, 'warning');
+            }
+        }
+
+        async function startCalibration() {
+            const mock = document.getElementById('calib-mock').checked;
+            const duration = parseInt(document.getElementById('calib-duration').value);
+
+            closeModal('calibration-modal');
+
+            try {
+                const response = await fetch('/api/calibrate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        mock: mock,
+                        duration: duration
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showFeedback(`✓ Calibration started! (${duration}s, ${mock ? 'mock' : 'real'})`, 'success');
+                } else {
+                    showFeedback('✗ Error: ' + data.error, 'warning');
+                }
+            } catch (error) {
+                showFeedback('✗ Failed to start calibration: ' + error.message, 'warning');
+            }
+        }
+
+        async function startAutonomous() {
+            const touchdesigner = document.getElementById('auto-touchdesigner').checked;
+            const tdAddress = document.getElementById('auto-td-address').value;
+            const updateRate = parseFloat(document.getElementById('auto-update-rate').value);
+
+            closeModal('autonomous-modal');
+
+            try {
+                const response = await fetch('/api/start_autonomous', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        touchdesigner: touchdesigner ? tdAddress : null,
+                        update_rate: updateRate
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showFeedback('✓ Autonomous mode started!', 'success');
+                } else {
+                    showFeedback('✗ Error: ' + data.error + '<br>' + (data.requires || ''), 'warning');
+                }
+            } catch (error) {
+                showFeedback('✗ Failed to start autonomous mode: ' + error.message, 'warning');
+            }
+        }
+
+        function visualizeCharacter() {
+            showFeedback('Run in terminal: <code>python scripts/visualize_character.py</code>', 'success');
+        }
+
+        function testOSC() {
+            const mode = document.getElementById('osc-mode').value;
+            const port = document.getElementById('osc-port').value;
+            const host = document.getElementById('osc-host').value;
+
+            closeModal('osc-test-modal');
+
+            let command = `python scripts/test_osc.py --${mode} --port ${port}`;
+            if (mode === 'send') {
+                command += ` --host ${host}`;
+            }
+
+            showFeedback(`Run in terminal: <code>${command}</code>`, 'success');
+        }
+
+        // WebSocket handlers
+        socket.on('connect', () => {
+            console.log('Connected to server');
+        });
+
+        socket.on('status_update', (data) => {
+            updateUI(data);
+        });
+
+        // Auto-refresh every 30 seconds
+        setInterval(() => {
+            socket.emit('request_update');
+        }, 30000);
+
+        // Load initial status
+        loadStatus();
+    </script>
+</body>
+</html>
