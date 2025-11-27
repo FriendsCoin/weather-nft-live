@@ -22,6 +22,20 @@ const cors = require('cors');
 const axios = require('axios');
 const DatabaseService = require('./database');
 const { Listing, Offer, MarketplaceTransaction } = require('./models');
+const { authenticateToken, verifyWalletOwnership } = require('./middleware/auth');
+const {
+  securityHeaders,
+  generalLimiter,
+  createLimiter,
+  corsOptions
+} = require('./middleware/security');
+const { requestLogger, errorLogger } = require('./middleware/logger');
+const {
+  validateMarketplaceListing,
+  validateMarketplacePurchase,
+  sanitizeInput,
+  validatePagination
+} = require('./middleware/validation');
 
 const app = express();
 const PORT = process.env.MARKETPLACE_PORT || 3013;
@@ -29,9 +43,13 @@ const PORT = process.env.MARKETPLACE_PORT || 3013;
 // Initialize database
 const db = new DatabaseService();
 
-// Middleware
-app.use(cors());
+// Security middleware
+app.use(securityHeaders());
+app.use(cors(corsOptions()));
 app.use(express.json());
+app.use(sanitizeInput);
+app.use(requestLogger);
+app.use(generalLimiter);
 
 // Service URLs
 const SERVICES = {
@@ -70,14 +88,14 @@ const TRANSACTION_TYPE = {
 // ============================================
 
 /**
- * Create NFT listing
+ * Create NFT listing (PROTECTED)
  * POST /api/marketplace/listings
+ * Rate limited: 20 creations per hour
  */
-app.post('/api/marketplace/listings', async (req, res) => {
+app.post('/api/marketplace/listings', authenticateToken, createLimiter, validateMarketplaceListing, async (req, res) => {
   try {
     const {
       nftId,
-      seller,
       price,
       currency = 'XTZ',
       duration = 30, // days
@@ -86,11 +104,14 @@ app.post('/api/marketplace/listings', async (req, res) => {
       buyNowPrice
     } = req.body;
 
+    // Get seller from authenticated user
+    const seller = req.user.walletAddress;
+
     // Validate required fields
-    if (!nftId || !seller || !price) {
+    if (!nftId || !price) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: nftId, seller, price'
+        error: 'Missing required fields: nftId, price'
       });
     }
 
@@ -112,17 +133,41 @@ app.post('/api/marketplace/listings', async (req, res) => {
       const nftResponse = await axios.get(`${SERVICES.nft}/api/nfts/${nftId}`);
       const nft = nftResponse.data;
 
-      // Verify seller owns the NFT
-      if (nft.capturedBy && nft.capturedBy !== seller) {
+      if (!nft) {
+        return res.status(404).json({
+          success: false,
+          error: 'NFT not found'
+        });
+      }
+
+      // Verify seller owns the NFT (check owner field, not capturedBy)
+      const nftOwner = nft.owner || nft.capturedBy;
+      if (!nftOwner) {
+        return res.status(400).json({
+          success: false,
+          error: 'NFT has no owner assigned'
+        });
+      }
+
+      if (nftOwner !== seller) {
         return res.status(403).json({
           success: false,
-          error: 'Only the NFT owner can list it'
+          error: 'Only the NFT owner can list it',
+          nftOwner: nftOwner,
+          yourAddress: seller
         });
       }
     } catch (error) {
-      return res.status(404).json({
+      if (error.response && error.response.status === 404) {
+        return res.status(404).json({
+          success: false,
+          error: 'NFT not found'
+        });
+      }
+      return res.status(500).json({
         success: false,
-        error: 'NFT not found'
+        error: 'Failed to verify NFT ownership',
+        message: error.message
       });
     }
 
@@ -291,13 +336,13 @@ app.get('/api/marketplace/listings/:listingId', async (req, res) => {
 });
 
 /**
- * Cancel listing
+ * Cancel listing (PROTECTED)
  * DELETE /api/marketplace/listings/:listingId
  */
-app.delete('/api/marketplace/listings/:listingId', async (req, res) => {
+app.delete('/api/marketplace/listings/:listingId', authenticateToken, async (req, res) => {
   try {
     const { listingId } = req.params;
-    const { seller } = req.body;
+    const seller = req.user.walletAddress;
 
     const listing = await Listing.findOne({ listingId });
 
@@ -353,17 +398,21 @@ app.delete('/api/marketplace/listings/:listingId', async (req, res) => {
 // ============================================
 
 /**
- * Buy NFT (direct purchase)
+ * Buy NFT (direct purchase) (PROTECTED)
  * POST /api/marketplace/buy
  */
-app.post('/api/marketplace/buy', async (req, res) => {
+app.post('/api/marketplace/buy', authenticateToken, async (req, res) => {
   try {
-    const { listingId, buyer, paymentMethod = 'wallet' } = req.body;
+    const { listingId, paymentMethod = 'wallet' } = req.body;
+    const buyer = req.user.walletAddress;
 
-    if (!listingId || !buyer) {
+    // Add buyer to body for validation
+    req.body.buyer = buyer;
+
+    if (!listingId) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: listingId, buyer'
+        error: 'Missing required field: listingId'
       });
     }
 
@@ -454,21 +503,22 @@ app.post('/api/marketplace/buy', async (req, res) => {
 // ============================================
 
 /**
- * Create offer/bid on NFT
+ * Create offer/bid on NFT (PROTECTED)
  * POST /api/marketplace/offers
  */
-app.post('/api/marketplace/offers', async (req, res) => {
+app.post('/api/marketplace/offers', authenticateToken, async (req, res) => {
   try {
     const {
       listingId,
       nftId,
-      offerer,
       amount,
       currency = 'XTZ',
       duration = 7 // days
     } = req.body;
 
-    if ((!listingId && !nftId) || !offerer || !amount) {
+    const offerer = req.user.walletAddress;
+
+    if ((!listingId && !nftId) || !amount) {
       return res.status(400).json({
         success: false,
         error: 'Missing required fields'
@@ -607,13 +657,13 @@ app.get('/api/marketplace/offers', async (req, res) => {
 });
 
 /**
- * Accept offer
+ * Accept offer (PROTECTED)
  * POST /api/marketplace/offers/:offerId/accept
  */
-app.post('/api/marketplace/offers/:offerId/accept', async (req, res) => {
+app.post('/api/marketplace/offers/:offerId/accept', authenticateToken, async (req, res) => {
   try {
     const { offerId } = req.params;
-    const { seller } = req.body;
+    const seller = req.user.walletAddress;
 
     const offer = await Offer.findOne({ offerId });
 
@@ -704,10 +754,10 @@ app.post('/api/marketplace/offers/:offerId/accept', async (req, res) => {
 });
 
 /**
- * Reject offer
+ * Reject offer (PROTECTED)
  * POST /api/marketplace/offers/:offerId/reject
  */
-app.post('/api/marketplace/offers/:offerId/reject', async (req, res) => {
+app.post('/api/marketplace/offers/:offerId/reject', authenticateToken, async (req, res) => {
   try {
     const { offerId } = req.params;
     const offer = await Offer.findOne({ offerId });
@@ -739,13 +789,13 @@ app.post('/api/marketplace/offers/:offerId/reject', async (req, res) => {
 });
 
 /**
- * Cancel offer
+ * Cancel offer (PROTECTED)
  * DELETE /api/marketplace/offers/:offerId
  */
-app.delete('/api/marketplace/offers/:offerId', async (req, res) => {
+app.delete('/api/marketplace/offers/:offerId', authenticateToken, async (req, res) => {
   try {
     const { offerId } = req.params;
-    const { offerer } = req.body;
+    const offerer = req.user.walletAddress;
 
     const offer = await Offer.findOne({ offerId });
 
@@ -969,6 +1019,9 @@ async function broadcastToWebSocket(channel, event, data) {
     console.log('WebSocket broadcast failed (service may not be running)');
   }
 }
+
+// Error logger middleware (must be after routes)
+app.use(errorLogger);
 
 // ============================================
 // HEALTH CHECK

@@ -13,6 +13,20 @@ const IPFSService = require('./ipfs-service');
 const AIArtGenerator = require('./ai-art-generator');
 const DatabaseService = require('./database');
 const { NFT } = require('./models');
+const { authenticateToken } = require('./middleware/auth');
+const {
+  securityHeaders,
+  generalLimiter,
+  createLimiter,
+  expensiveLimiter,
+  corsOptions
+} = require('./middleware/security');
+const { requestLogger, errorLogger } = require('./middleware/logger');
+const {
+  validateNFTCreation,
+  validateArtGeneration,
+  sanitizeInput
+} = require('./middleware/validation');
 
 const app = express();
 const PORT = process.env.NFT_SERVICE_PORT || 3009;
@@ -20,8 +34,13 @@ const PORT = process.env.NFT_SERVICE_PORT || 3009;
 // Configure multer for memory storage
 const upload = multer({ storage: multer.memoryStorage() });
 
-app.use(cors());
+// Security middleware
+app.use(securityHeaders());
+app.use(cors(corsOptions()));
 app.use(express.json({ limit: '50mb' })); // Increase limit for base64 images
+app.use(sanitizeInput);
+app.use(requestLogger);
+app.use(generalLimiter);
 
 // Initialize services
 const ipfsService = new IPFSService({
@@ -84,8 +103,9 @@ app.get('/api/ipfs/test', async (req, res) => {
 /**
  * Generate AI art from weather data
  * POST /api/art/generate
+ * Rate limited: 10 AI generations per hour
  */
-app.post('/api/art/generate', async (req, res) => {
+app.post('/api/art/generate', expensiveLimiter, async (req, res) => {
   try {
     const { weatherData, eventData, location, rarity } = req.body;
 
@@ -128,21 +148,24 @@ app.post('/api/art/generate', async (req, res) => {
 });
 
 /**
- * Create complete NFT with AI art generation
+ * Create complete NFT with AI art generation (PROTECTED)
  * POST /api/nft/create-with-art
  * Generates art automatically from weather data
+ * Rate limited: 10 AI generations per hour
  */
-app.post('/api/nft/create-with-art', async (req, res) => {
+app.post('/api/nft/create-with-art', authenticateToken, expensiveLimiter, validateNFTCreation, async (req, res) => {
   try {
     const {
       eventId,
       weatherData,
       eventData,
       location,
-      owner,
       rarity,
       algorithm
     } = req.body;
+
+    // Get owner from authenticated user
+    const owner = req.user.walletAddress;
 
     if (!eventId || !weatherData || !eventData) {
       return res.status(400).json({
@@ -233,18 +256,18 @@ app.post('/api/nft/create-with-art', async (req, res) => {
 });
 
 /**
- * Create complete NFT from weather event
+ * Create complete NFT from weather event (PROTECTED)
  * POST /api/nft/create
  * Body: {
  *   eventId: string,
  *   weatherData: object,
  *   eventData: object,
  *   location: object,
- *   imageBase64: base64 string,
- *   owner: string (wallet address)
+ *   imageBase64: base64 string
  * }
+ * Rate limited: 20 creations per hour
  */
-app.post('/api/nft/create', async (req, res) => {
+app.post('/api/nft/create', authenticateToken, createLimiter, validateNFTCreation, async (req, res) => {
   try {
     const {
       eventId,
@@ -252,10 +275,12 @@ app.post('/api/nft/create', async (req, res) => {
       eventData,
       location,
       imageBase64,
-      owner,
       rarity,
       algorithm
     } = req.body;
+
+    // Get owner from authenticated user
+    const owner = req.user.walletAddress;
 
     // Validate required fields
     if (!eventId || !weatherData || !eventData || !imageBase64) {
@@ -499,11 +524,11 @@ app.get('/api/nfts', async (req, res) => {
 });
 
 /**
- * Update NFT status (after blockchain minting)
+ * Update NFT status (after blockchain minting) (PROTECTED)
  * PUT /api/nft/:eventId/status
  * Body: { status: string, txHash?: string, tokenId?: string }
  */
-app.put('/api/nft/:eventId/status', async (req, res) => {
+app.put('/api/nft/:eventId/status', authenticateToken, async (req, res) => {
   try {
     const { eventId } = req.params;
     const { status, txHash, tokenId } = req.body;
@@ -580,6 +605,9 @@ app.post('/api/metadata/preview', (req, res) => {
     });
   }
 });
+
+// Error logger middleware (must be after routes)
+app.use(errorLogger);
 
 // Start server with database connection
 async function startServer() {

@@ -1,0 +1,45 @@
+# Ignore node_modules
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Ignore development files
+*.md
+!README.md
+.git
+.gitignore
+.env*
+!.env.example
+
+# Ignore test files
+**/__tests__
+*.test.js
+coverage
+jest.config.js
+
+# Ignore logs
+logs
+*.log
+
+# Ignore temporary files
+tmp
+temp
+.cache
+
+# Ignore documentation
+docs
+
+# Ignore IDE files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Ignore build artifacts
+dist
+build
