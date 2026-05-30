@@ -117,10 +117,32 @@ npm start
 ## 🎨 AI Art Generation
 
 Each captured weather event generates unique visual NFT:
-- **Stable Diffusion** creates art based on weather conditions
+- **Multi-provider generators** — Stability AI (SD3/SDXL), FLUX via fal.ai &
+  Replicate, OpenAI gpt-image, self-hosted SD, with automatic fallback to a
+  procedural renderer (always available, zero keys)
 - **Dynamic prompts** from temperature, humidity, wind, location
-- **Animated sequences** showing weather progression
+- **Deterministic seeding** so identical conditions reproduce the same art
 - **IPFS storage** for decentralized metadata
+
+## 🧠 Modern Detection & 🤖 Autonomous Agents
+
+Recent modernization adds three subsystems (see
+[docs/MODERN_GENERATORS_AND_AGENTS.md](./docs/MODERN_GENERATORS_AND_AGENTS.md)):
+
+- **Modern generators** (`src/backend/generators/`) — pluggable image providers
+  with a priority-ordered auto-fallback registry.
+- **Modern algorithms** (`src/backend/algorithms/`) — a climatology-aware
+  detection ensemble that scores anomalies by z-score and fuses multi-factor
+  signals into a calibrated confidence (`GET /api/weather/detect-events?engine=v2`,
+  `GET /api/algorithms`).
+- **Agency** (`src/backend/agents/`) — the **WeatherHunter** agent autonomously
+  perceives → reasons → decides → acts (scan, detect, generate, mint, notify)
+  under an explicit budget/cooldown policy.
+
+```bash
+npm run agent        # run the autonomous hunter + status API (:3013)
+npm run agent:once   # single dry-run cycle (no minting, no external deps)
+```
 
 ## 📊 Current Status
 
