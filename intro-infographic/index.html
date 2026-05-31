@@ -1,0 +1,952 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="vendor/gsap.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      :root {
+        --bg: #0a0e1c;
+        --bg2: #070a15;
+        --panel: #121a36;
+        --fg: #eef2fb;
+        --dim: #c3cdea;
+        --amber: #ffd23f; /* lightning */
+        --teal: #34e3c4; /* aurora */
+        --blue: #5aa9ff;
+        --violet: #9a8bff;
+        --red: #ff6b6b;
+      }
+      html,
+      body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--bg2);
+        font-family: "Montserrat", sans-serif;
+        color: var(--fg);
+      }
+
+      /* ---------- Scene shell ---------- */
+      .scene {
+        position: absolute;
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--bg);
+      }
+      #s1 {
+        z-index: 1;
+      }
+      #s2,
+      #s3,
+      #s4,
+      #s5,
+      #s6 {
+        opacity: 0;
+      }
+      #s2 {
+        z-index: 2;
+      }
+      #s3 {
+        z-index: 3;
+      }
+      #s4 {
+        z-index: 4;
+      }
+      #s5 {
+        z-index: 5;
+      }
+      #s6 {
+        z-index: 6;
+      }
+
+      .wrap {
+        position: relative;
+        z-index: 5;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        box-sizing: border-box;
+      }
+
+      /* ---------- Shared decoratives ---------- */
+      .glow {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(70px);
+        z-index: 0;
+        pointer-events: none;
+      }
+      .grid-bg {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        background-image: linear-gradient(rgba(120, 150, 220, 0.06) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(120, 150, 220, 0.06) 1px, transparent 1px);
+        background-size: 96px 96px;
+        mask-image: radial-gradient(circle at 50% 45%, #000 30%, transparent 80%);
+      }
+      .ghost {
+        position: absolute;
+        font-family: "Bebas Neue", sans-serif;
+        color: rgba(170, 190, 240, 0.05);
+        white-space: nowrap;
+        z-index: 0;
+        letter-spacing: -0.02em;
+        pointer-events: none;
+      }
+      .eyebrow {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 24px;
+        letter-spacing: 0.42em;
+        text-transform: uppercase;
+        color: var(--teal);
+        font-weight: 500;
+      }
+      .mono {
+        font-family: "IBM Plex Mono", monospace;
+      }
+      .anton {
+        font-family: "Bebas Neue", sans-serif;
+        font-weight: 400;
+        letter-spacing: 0.01em;
+      }
+      .reg-mark {
+        position: absolute;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 18px;
+        letter-spacing: 0.3em;
+        color: rgba(198, 210, 238, 0.92);
+        z-index: 6;
+      }
+
+      /* ================= SCENE 1 — HOOK ================= */
+      #s1 .wrap {
+        justify-content: center;
+        padding: 0 160px;
+      }
+      #s1 .g1 {
+        width: 1100px;
+        height: 1100px;
+        left: -120px;
+        top: -260px;
+        background: radial-gradient(circle, rgba(255, 210, 63, 0.5), transparent 65%);
+      }
+      #s1 .g2 {
+        width: 1000px;
+        height: 1000px;
+        right: -160px;
+        bottom: -300px;
+        background: radial-gradient(circle, rgba(52, 227, 196, 0.42), transparent 65%);
+      }
+      #s1 .ghost {
+        font-size: 560px;
+        right: -40px;
+        top: 40px;
+      }
+      #s1 .hero {
+        font-size: 188px;
+        line-height: 0.92;
+        letter-spacing: -0.01em;
+      }
+      #s1 .hero .dot {
+        color: var(--amber);
+      }
+      #s1 .sub {
+        font-size: 38px;
+        font-weight: 300;
+        color: var(--dim);
+        max-width: 1080px;
+        margin-top: 30px;
+        line-height: 1.35;
+      }
+      #s1 .eyebrow {
+        margin-bottom: 30px;
+      }
+      .bolt {
+        position: absolute;
+        right: 220px;
+        top: 150px;
+        width: 230px;
+        z-index: 4;
+        filter: drop-shadow(0 0 26px rgba(255, 210, 63, 0.65));
+      }
+      .bolt path {
+        fill: var(--amber);
+      }
+      #s1 .rule {
+        height: 3px;
+        width: 520px;
+        background: linear-gradient(90deg, var(--amber), transparent);
+        margin-top: 44px;
+        transform-origin: left center;
+      }
+      .particle {
+        position: absolute;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--teal);
+        z-index: 3;
+        box-shadow: 0 0 14px rgba(52, 227, 196, 0.8);
+      }
+
+      /* ================= SCENE 2 — SHIFT ================= */
+      #s2 .g1 {
+        width: 1200px;
+        height: 1200px;
+        right: -260px;
+        top: -260px;
+        background: radial-gradient(circle, rgba(255, 210, 63, 0.34), transparent 66%);
+      }
+      #s2 .wrap {
+        flex-direction: row;
+        padding: 130px 150px;
+        gap: 0;
+        align-items: stretch;
+      }
+      #s2 .col {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+      #s2 .col.left {
+        padding-right: 90px;
+        opacity: 0.62;
+      }
+      #s2 .divider {
+        width: 2px;
+        align-self: stretch;
+        background: linear-gradient(180deg, transparent, rgba(170, 190, 240, 0.4), transparent);
+        transform-origin: center top;
+      }
+      #s2 .col.right {
+        padding-left: 90px;
+      }
+      .kicker {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 22px;
+        letter-spacing: 0.34em;
+        text-transform: uppercase;
+        margin-bottom: 26px;
+      }
+      #s2 .left .kicker {
+        color: var(--dim);
+      }
+      #s2 .right .kicker {
+        color: var(--amber);
+      }
+      #s2 .old-title {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 74px;
+        color: #97a3c6;
+        line-height: 1;
+        position: relative;
+        display: inline-block;
+      }
+      #s2 .strike {
+        position: absolute;
+        left: -6px;
+        top: 52%;
+        height: 7px;
+        width: calc(100% + 12px);
+        background: var(--red);
+        transform-origin: left center;
+        border-radius: 4px;
+      }
+      #s2 .old-desc {
+        font-size: 30px;
+        font-weight: 300;
+        color: #97a3c6;
+        margin-top: 26px;
+        line-height: 1.4;
+        max-width: 540px;
+      }
+      #s2 .flow {
+        display: flex;
+        flex-direction: column;
+        gap: 22px;
+      }
+      #s2 .step {
+        display: flex;
+        align-items: center;
+        gap: 26px;
+      }
+      #s2 .step .num {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 26px;
+        color: var(--teal);
+        width: 44px;
+      }
+      #s2 .step .label {
+        font-size: 52px;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+      }
+      #s2 .step .arrow {
+        color: var(--amber);
+        font-size: 40px;
+        margin-left: 70px;
+      }
+
+      /* ================= SCENE 3 — ALGORITHMS ================= */
+      #s3 .g1 {
+        width: 1000px;
+        height: 1000px;
+        left: 40%;
+        top: -340px;
+        transform: translateX(-50%);
+        background: radial-gradient(circle, rgba(90, 169, 255, 0.32), transparent 66%);
+      }
+      #s3 .wrap {
+        padding: 110px 150px;
+        justify-content: flex-start;
+      }
+      #s3 .head {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        margin-bottom: 44px;
+      }
+      #s3 .head h2 {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 96px;
+        line-height: 0.92;
+        letter-spacing: 0.005em;
+      }
+      #s3 .head h2 em {
+        font-style: normal;
+        color: var(--amber);
+      }
+      #s3 .scan {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 22px;
+        color: var(--teal);
+        letter-spacing: 0.22em;
+        text-align: right;
+        padding-bottom: 10px;
+      }
+      #s3 .rows {
+        display: flex;
+        flex-direction: column;
+      }
+      #s3 .row {
+        display: grid;
+        grid-template-columns: 120px 460px 1fr;
+        align-items: center;
+        gap: 36px;
+        padding: 26px 8px;
+        border-top: 2px solid rgba(170, 190, 240, 0.14);
+      }
+      #s3 .row:last-child {
+        border-bottom: 2px solid rgba(170, 190, 240, 0.14);
+      }
+      #s3 .row .idx {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 40px;
+        color: var(--teal);
+      }
+      #s3 .row .name {
+        font-size: 46px;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+      }
+      #s3 .row .desc {
+        font-size: 28px;
+        font-weight: 300;
+        color: var(--dim);
+      }
+      #s3 .row .dot {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--amber);
+        display: inline-block;
+        margin-left: 14px;
+        box-shadow: 0 0 12px rgba(255, 210, 63, 0.8);
+        vertical-align: middle;
+      }
+
+      /* ================= SCENE 4 — LIVE CAPTURE ================= */
+      #s4 {
+        background: radial-gradient(circle at 50% 120%, #14102a, var(--bg));
+      }
+      #s4 .g1 {
+        width: 1100px;
+        height: 1100px;
+        left: 50%;
+        top: 30%;
+        transform: translate(-50%, -50%);
+        background: radial-gradient(circle, rgba(255, 107, 107, 0.28), transparent 64%);
+      }
+      #s4 .wrap {
+        padding: 110px 150px;
+        justify-content: center;
+      }
+      #s4 .topline {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        margin-bottom: 26px;
+      }
+      .live-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 14px;
+        background: rgba(255, 107, 107, 0.14);
+        border: 2px solid var(--red);
+        color: #ffb3b3;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 24px;
+        letter-spacing: 0.3em;
+        padding: 12px 22px;
+        border-radius: 6px;
+      }
+      .live-badge .pulse {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--red);
+        box-shadow: 0 0 14px var(--red);
+      }
+      #s4 h2 {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 118px;
+        line-height: 0.9;
+        margin-bottom: 56px;
+      }
+      #s4 h2 em {
+        font-style: normal;
+        color: var(--amber);
+      }
+      #s4 .metrics {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 40px;
+      }
+      #s4 .metric {
+        background: rgba(18, 26, 54, 0.72);
+        border: 2px solid rgba(170, 190, 240, 0.16);
+        border-radius: 16px;
+        padding: 40px 44px;
+        position: relative;
+        overflow: hidden;
+      }
+      #s4 .metric .ml {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 20px;
+        letter-spacing: 0.24em;
+        text-transform: uppercase;
+        color: var(--dim);
+        margin-bottom: 18px;
+      }
+      #s4 .metric .mv {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 84px;
+        line-height: 0.95;
+        color: var(--amber);
+        font-variant-numeric: tabular-nums;
+      }
+      #s4 .metric .mu {
+        font-size: 26px;
+        font-weight: 300;
+        color: var(--fg);
+        margin-top: 12px;
+      }
+      #s4 .ring {
+        position: absolute;
+        right: 26px;
+        top: 26px;
+      }
+      #s4 .ring circle {
+        fill: none;
+        stroke-width: 9;
+      }
+      #s4 .slots {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 9px;
+        margin-top: 18px;
+        max-width: 280px;
+      }
+      #s4 .slots i {
+        width: 22px;
+        height: 22px;
+        border-radius: 5px;
+        background: rgba(170, 190, 240, 0.16);
+        display: block;
+      }
+      #s4 .slots i.on {
+        background: var(--teal);
+        box-shadow: 0 0 10px rgba(52, 227, 196, 0.7);
+      }
+      .wave {
+        display: flex;
+        align-items: flex-end;
+        gap: 7px;
+        height: 84px;
+        margin-top: 14px;
+      }
+      .wave span {
+        width: 12px;
+        background: var(--teal);
+        border-radius: 4px;
+        transform-origin: bottom;
+      }
+
+      /* ================= SCENE 5 — RARITY ================= */
+      #s5 .g1 {
+        width: 1100px;
+        height: 1100px;
+        right: -260px;
+        bottom: -340px;
+        background: radial-gradient(circle, rgba(154, 139, 255, 0.34), transparent 66%);
+      }
+      #s5 .wrap {
+        padding: 110px 150px;
+        justify-content: center;
+      }
+      #s5 .head {
+        display: flex;
+        align-items: baseline;
+        gap: 30px;
+        margin-bottom: 50px;
+      }
+      #s5 .head h2 {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 96px;
+        line-height: 0.92;
+      }
+      #s5 .head .note {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 24px;
+        color: var(--dim);
+        letter-spacing: 0.1em;
+      }
+      #s5 .head .note b {
+        color: var(--amber);
+        font-weight: 600;
+      }
+      #s5 .bars {
+        display: flex;
+        flex-direction: column;
+        gap: 22px;
+      }
+      #s5 .bar {
+        display: grid;
+        grid-template-columns: 300px 1fr 150px;
+        align-items: center;
+        gap: 30px;
+      }
+      #s5 .bar .tier {
+        font-size: 38px;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+      }
+      #s5 .track {
+        height: 40px;
+        background: rgba(170, 190, 240, 0.08);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      #s5 .fill {
+        height: 100%;
+        border-radius: 8px;
+        transform-origin: left center;
+      }
+      #s5 .bar .mult {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 54px;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* ================= SCENE 6 — CTA ================= */
+      #s6 {
+        background: radial-gradient(circle at 50% 46%, #11183a, var(--bg2));
+      }
+      #s6 .g1 {
+        width: 1200px;
+        height: 1200px;
+        left: 50%;
+        top: 44%;
+        transform: translate(-50%, -50%);
+        background: radial-gradient(circle, rgba(255, 210, 63, 0.4), transparent 62%);
+      }
+      #s6 .g2 {
+        width: 760px;
+        height: 760px;
+        left: 50%;
+        top: 44%;
+        transform: translate(-50%, -50%);
+        background: radial-gradient(circle, rgba(52, 227, 196, 0.32), transparent 64%);
+      }
+      #s6 .wrap {
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 0 160px;
+      }
+      #s6 .mark {
+        width: 120px;
+        margin-bottom: 34px;
+        filter: drop-shadow(0 0 30px rgba(255, 210, 63, 0.7));
+      }
+      #s6 .mark path {
+        fill: var(--amber);
+      }
+      #s6 .word {
+        font-family: "Bebas Neue", sans-serif;
+        font-size: 168px;
+        line-height: 0.95;
+        letter-spacing: -0.005em;
+      }
+      #s6 .word .dot {
+        color: var(--amber);
+      }
+      #s6 .tag {
+        font-size: 44px;
+        font-weight: 300;
+        color: var(--fg);
+        margin-top: 26px;
+        letter-spacing: 0.01em;
+      }
+      #s6 .stack {
+        margin-top: 44px;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 26px;
+        letter-spacing: 0.18em;
+        color: var(--teal);
+      }
+      #s6 .url {
+        margin-top: 18px;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 30px;
+        letter-spacing: 0.22em;
+        color: var(--dim);
+      }
+      #s6 .url b {
+        color: var(--amber);
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="35"
+      data-width="1920"
+      data-height="1080"
+    >
+      <!-- ============ SCENE 1 — HOOK ============ -->
+      <div id="s1" class="scene">
+        <div data-layout-ignore class="glow g1"></div>
+        <div data-layout-ignore class="glow g2"></div>
+        <div class="grid-bg"></div>
+        <div class="ghost" data-layout-ignore>STORM</div>
+        <svg class="bolt" viewBox="0 0 100 200" aria-hidden="true">
+          <path d="M58 0 L18 110 L48 110 L34 200 L92 78 L60 78 Z" />
+        </svg>
+        <span class="particle" style="left: 18%; top: 30%"></span>
+        <span class="particle" style="left: 30%; top: 72%; background: var(--amber); box-shadow: 0 0 14px rgba(255,210,63,0.8)"></span>
+        <span class="particle" style="left: 80%; top: 66%"></span>
+        <div class="reg-mark" style="left: 64px; bottom: 56px">EST · 2026 · GHOSTNET</div>
+        <div class="reg-mark" style="right: 64px; top: 56px">◢ LIVE FEED</div>
+        <div class="wrap">
+          <div class="eyebrow">Live Weather · Tezos NFT</div>
+          <h1 class="hero anton">WEATHERNFT<span class="dot">.LIVE</span></h1>
+          <p class="sub">Hunt live weather events detected by AI — and capture each fleeting moment as a one-of-a-kind NFT.</p>
+          <div class="rule"></div>
+        </div>
+      </div>
+
+      <!-- ============ SCENE 2 — THE SHIFT ============ -->
+      <div id="s2" class="scene" data-layout-allow-overflow>
+        <div data-layout-ignore class="glow g1"></div>
+        <div class="grid-bg"></div>
+        <div class="reg-mark" style="left: 64px; top: 56px">// THE SHIFT</div>
+        <div class="wrap">
+          <div class="col left">
+            <div class="kicker">Traditional NFTs</div>
+            <div class="old-title">STATIC IMAGES<span class="strike"></span></div>
+            <p class="old-desc">A fixed collection. You browse a gallery, then buy a picture that never changes.</p>
+          </div>
+          <div class="divider"></div>
+          <div class="col right">
+            <div class="kicker">WeatherNFT</div>
+            <div class="flow">
+              <div class="step"><span class="num mono">01</span><span class="label">LIVE WEATHER STREAM</span></div>
+              <div class="step"><span class="num mono">02</span><span class="label">AI DETECTS THE MOMENT</span></div>
+              <div class="step"><span class="num mono">03</span><span class="label" style="color: var(--amber)">YOU CAPTURE IT</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ SCENE 3 — 5 AI ALGORITHMS ============ -->
+      <div id="s3" class="scene" data-layout-allow-overflow>
+        <div data-layout-ignore class="glow g1"></div>
+        <div class="grid-bg"></div>
+        <div class="reg-mark" style="right: 64px; bottom: 56px">SCANNING · 24/7 · GLOBAL</div>
+        <div class="wrap">
+          <div class="head">
+            <h2 class="anton"><em>5</em> AI ALGORITHMS<br />SCANNING THE GLOBE</h2>
+            <div class="scan">[ STATUS: ONLINE ]<br />◢◢◢ SWEEPING</div>
+          </div>
+          <div class="rows">
+            <div class="row"><span class="idx mono">01</span><span class="name">Storm Hunter<i class="dot"></i></span><span class="desc">Detects severe weather formation as it builds</span></div>
+            <div class="row"><span class="idx mono">02</span><span class="name">Aurora Predictor<i class="dot"></i></span><span class="desc">Identifies northern-lights probability</span></div>
+            <div class="row"><span class="idx mono">03</span><span class="name">Micro Climate<i class="dot"></i></span><span class="desc">Finds unusual local conditions</span></div>
+            <div class="row"><span class="idx mono">04</span><span class="name">Extreme Weather<i class="dot"></i></span><span class="desc">Tracks dangerous, record-breaking events</span></div>
+            <div class="row"><span class="idx mono">05</span><span class="name">Temperature Anomaly<i class="dot"></i></span><span class="desc">Spots sudden temperature spikes</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ SCENE 4 — LIVE CAPTURE / FOMO ============ -->
+      <div id="s4" class="scene">
+        <div data-layout-ignore class="glow g1"></div>
+        <div class="grid-bg"></div>
+        <div class="reg-mark" style="left: 64px; bottom: 56px">WEBSOCKET · WS://LIVE</div>
+        <div class="wrap">
+          <div class="topline">
+            <span class="live-badge"><span class="pulse"></span>LIVE EVENT</span>
+          </div>
+          <h2 class="anton">EVENTS <em>VANISH</em> FAST.</h2>
+          <div class="metrics">
+            <div class="metric">
+              <svg class="ring" width="64" height="64" viewBox="0 0 64 64">
+                <circle cx="32" cy="32" r="27" stroke="rgba(170,190,240,0.18)" />
+                <circle id="ringFg" cx="32" cy="32" r="27" stroke="var(--amber)" stroke-linecap="round" transform="rotate(-90 32 32)" />
+              </svg>
+              <div class="ml">Event Window</div>
+              <div class="mv"><span id="win">15</span>–120</div>
+              <div class="mu">minutes, then it's gone</div>
+            </div>
+            <div class="metric">
+              <div class="ml">Capture Slots</div>
+              <div class="mv"><span id="slotN">1</span>–20</div>
+              <div class="mu">per event by rarity</div>
+              <div class="slots">
+                <i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+              </div>
+            </div>
+            <div class="metric">
+              <div class="ml">Notifications</div>
+              <div class="mv" style="color: var(--teal)">REAL<br />TIME</div>
+              <div class="wave">
+                <span style="height: 30%"></span><span style="height: 70%"></span><span style="height: 45%"></span><span style="height: 95%"></span><span style="height: 55%"></span><span style="height: 80%"></span><span style="height: 35%"></span><span style="height: 65%"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ SCENE 5 — RARITY ============ -->
+      <div id="s5" class="scene">
+        <div data-layout-ignore class="glow g1"></div>
+        <div class="grid-bg"></div>
+        <div class="reg-mark" style="left: 64px; top: 56px">// RARITY ENGINE</div>
+        <div class="wrap">
+          <div class="head">
+            <h2 class="anton">RARITY DRIVES VALUE</h2>
+            <div class="note">BASE <b>0.5 XTZ</b> × UP TO <b>30×</b></div>
+          </div>
+          <div class="bars">
+            <div class="bar" data-mult="1" data-w="14" data-c="#aab8da">
+              <span class="tier" style="color: #aab8da">Common</span>
+              <div class="track"><div class="fill"></div></div>
+              <span class="mult">1×</span>
+            </div>
+            <div class="bar" data-mult="2" data-w="20" data-c="#34e3c4">
+              <span class="tier" style="color: #34e3c4">Uncommon</span>
+              <div class="track"><div class="fill"></div></div>
+              <span class="mult">2×</span>
+            </div>
+            <div class="bar" data-mult="5" data-w="33" data-c="#5aa9ff">
+              <span class="tier" style="color: #5aa9ff">Rare</span>
+              <div class="track"><div class="fill"></div></div>
+              <span class="mult">5×</span>
+            </div>
+            <div class="bar" data-mult="10" data-w="52" data-c="#9a8bff">
+              <span class="tier" style="color: #9a8bff">Epic</span>
+              <div class="track"><div class="fill"></div></div>
+              <span class="mult">10×</span>
+            </div>
+            <div class="bar" data-mult="30" data-w="100" data-c="#ffd23f">
+              <span class="tier" style="color: #ffd23f">Legendary</span>
+              <div class="track"><div class="fill"></div></div>
+              <span class="mult">30×</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ SCENE 6 — CTA ============ -->
+      <div id="s6" class="scene">
+        <div data-layout-ignore class="glow g1"></div>
+        <div data-layout-ignore class="glow g2"></div>
+        <div class="grid-bg"></div>
+        <div class="wrap">
+          <svg class="mark" viewBox="0 0 100 200" aria-hidden="true">
+            <path d="M58 0 L18 110 L48 110 L34 200 L92 78 L60 78 Z" />
+          </svg>
+          <h2 class="word anton">WEATHERNFT<span class="dot">.LIVE</span></h2>
+          <p class="tag">Hunt the sky. Own the storm.</p>
+          <div class="stack">BUILT ON TEZOS · FA2 · AI ART · IPFS · GUILDS</div>
+          <div class="url">weathernft.live · <b>GHOSTNET LIVE NOW</b></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // ---- counter helper (seekable, deterministic) ----
+      function counter(sel, end, at, dur, ease, fmt) {
+        const el = typeof sel === "string" ? document.querySelector(sel) : sel;
+        const o = { v: 0 };
+        tl.to(
+          o,
+          {
+            v: end,
+            duration: dur,
+            ease: ease,
+            onUpdate() {
+              el.textContent = fmt ? fmt(o.v) : Math.round(o.v);
+            },
+          },
+          at,
+        );
+      }
+
+      /* ================= SCENE 1  (0 → 5.3) ================= */
+      tl.fromTo("#s1 .eyebrow", { opacity: 0, y: -24 }, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }, 0.2);
+      tl.fromTo("#s1 .hero", { opacity: 0, y: 70, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.9, ease: "expo.out" }, 0.4);
+      tl.fromTo("#s1 .hero .dot", { color: "#eef2fb" }, { color: "#ffd23f", duration: 0.5, ease: "power1.in" }, 1.1);
+      tl.fromTo("#s1 .sub", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.7, ease: "power3.out" }, 0.9);
+      tl.fromTo("#s1 .rule", { scaleX: 0 }, { scaleX: 1, duration: 0.8, ease: "power2.inOut" }, 1.2);
+      // bolt strike
+      tl.fromTo("#s1 .bolt", { opacity: 0, y: -60, scale: 0.7, rotation: -8 }, { opacity: 1, y: 0, scale: 1, rotation: 0, duration: 0.5, ease: "back.out(2)" }, 0.7);
+      tl.to("#s1 .bolt", { opacity: 0.55, duration: 0.12, yoyo: true, repeat: 5, ease: "rough({strength:2,points:8,clamp:false})" }, 1.3);
+      // particles in
+      tl.fromTo("#s1 .particle", { opacity: 0, scale: 0 }, { opacity: 1, scale: 1, duration: 0.5, stagger: 0.12, ease: "back.out(1.7)" }, 1.0);
+      tl.fromTo("#s1 .reg-mark", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: "power1.out" }, 1.4);
+      // ambient
+      tl.to("#s1 .g1", { scale: 1.14, duration: 2.4, yoyo: true, repeat: 2, ease: "sine.inOut" }, 0.5);
+      tl.to("#s1 .g2", { scale: 1.1, duration: 2.8, yoyo: true, repeat: 2, ease: "sine.inOut" }, 0.8);
+      tl.to("#s1 .ghost", { xPercent: -3, duration: 5, yoyo: true, repeat: 1, ease: "sine.inOut" }, 0.2);
+      tl.to("#s1 .particle", { y: -26, duration: 2.0, yoyo: true, repeat: 2, ease: "sine.inOut", stagger: 0.3 }, 1.6);
+
+      /* ===== TRANSITION 1 → 2 : blur crossfade @5.3 ===== */
+      tl.to("#s1", { filter: "blur(10px)", scale: 1.03, opacity: 0, duration: 0.5, ease: "power2.inOut" }, 5.3);
+      tl.fromTo("#s2", { filter: "blur(10px)", scale: 0.97, opacity: 0 }, { filter: "blur(0px)", scale: 1, opacity: 1, duration: 0.55, ease: "power2.inOut" }, 5.4);
+
+      /* ================= SCENE 2  (5.4 → 10.8) ================= */
+      tl.fromTo("#s2 .left .kicker", { opacity: 0, x: -30 }, { opacity: 0.62, x: 0, duration: 0.5, ease: "power2.out" }, 5.7);
+      tl.fromTo("#s2 .old-title", { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.6, ease: "power2.out" }, 5.85);
+      tl.fromTo("#s2 .old-desc", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: "power1.out" }, 6.1);
+      tl.fromTo("#s2 .strike", { scaleX: 0 }, { scaleX: 1, duration: 0.45, ease: "power3.inOut" }, 6.5);
+      tl.fromTo("#s2 .divider", { scaleY: 0 }, { scaleY: 1, duration: 0.7, ease: "power2.inOut" }, 6.4);
+      tl.fromTo("#s2 .right .kicker", { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 0.5, ease: "power2.out" }, 6.7);
+      tl.fromTo("#s2 .step", { opacity: 0, x: 50 }, { opacity: 1, x: 0, duration: 0.55, stagger: 0.28, ease: "power3.out" }, 7.0);
+      tl.fromTo("#s2 .reg-mark", { opacity: 0 }, { opacity: 1, duration: 0.5 }, 7.0);
+      // ambient
+      tl.to("#s2 .g1", { scale: 1.12, duration: 2.6, yoyo: true, repeat: 1, ease: "sine.inOut" }, 6.0);
+      tl.to("#s2 .step .num", { opacity: 0.5, duration: 0.9, yoyo: true, repeat: 3, ease: "sine.inOut", stagger: 0.2 }, 8.4);
+
+      /* ===== TRANSITION 2 → 3 : push slide @10.8 ===== */
+      tl.to("#s2", { x: -1920, duration: 0.55, ease: "power3.inOut" }, 10.8);
+      tl.fromTo("#s3", { x: 1920, opacity: 1 }, { x: 0, duration: 0.55, ease: "power3.inOut" }, 10.8);
+
+      /* ================= SCENE 3  (10.8 → 16.6) ================= */
+      tl.fromTo("#s3 .head h2", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.7, ease: "expo.out" }, 11.2);
+      tl.fromTo("#s3 .head h2 em", { scale: 0.4, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: "back.out(2.2)" }, 11.4);
+      tl.fromTo("#s3 .scan", { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 0.5, ease: "power2.out" }, 11.5);
+      tl.fromTo("#s3 .row", { opacity: 0, x: -60 }, { opacity: 1, x: 0, duration: 0.5, stagger: 0.16, ease: "power3.out" }, 11.8);
+      tl.fromTo("#s3 .row .dot", { scale: 0 }, { scale: 1, duration: 0.4, stagger: 0.16, ease: "back.out(3)" }, 12.0);
+      tl.fromTo("#s3 .reg-mark", { opacity: 0 }, { opacity: 1, duration: 0.5 }, 12.4);
+      // ambient: scanning pulse on dots + glow drift
+      tl.to("#s3 .row .dot", { opacity: 0.35, duration: 0.7, yoyo: true, repeat: 4, ease: "sine.inOut", stagger: 0.12 }, 13.0);
+      tl.to("#s3 .g1", { xPercent: -8, duration: 3.0, yoyo: true, repeat: 1, ease: "sine.inOut" }, 12.0);
+
+      /* ===== TRANSITION 3 → 4 : zoom through @16.6 ===== */
+      tl.to("#s3", { scale: 2.4, opacity: 0, filter: "blur(8px)", duration: 0.42, ease: "power3.in" }, 16.6);
+      tl.fromTo("#s4", { scale: 0.55, opacity: 0, filter: "blur(8px)" }, { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.46, ease: "power3.out" }, 16.75);
+
+      /* ================= SCENE 4  (16.75 → 22.1) ================= */
+      tl.fromTo("#s4 .live-badge", { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 0.45, ease: "back.out(2)" }, 17.1);
+      tl.fromTo("#s4 h2", { opacity: 0, y: 50 }, { opacity: 1, y: 0, duration: 0.55, ease: "power3.out" }, 17.25);
+      tl.fromTo("#s4 h2 em", { color: "#eef2fb" }, { color: "#ffd23f", duration: 0.4 }, 17.7);
+      tl.fromTo("#s4 .metric", { opacity: 0, y: 70 }, { opacity: 1, y: 0, duration: 0.55, stagger: 0.18, ease: "power3.out" }, 17.6);
+      tl.fromTo("#s4 .reg-mark", { opacity: 0 }, { opacity: 1, duration: 0.5 }, 17.6);
+      // ring depletion + counters
+      tl.fromTo("#ringFg", { strokeDasharray: 170, strokeDashoffset: 170 }, { strokeDashoffset: 50, duration: 1.1, ease: "power1.inOut" }, 18.1);
+      counter("#win", 15, 18.1, 0.9, "power2.out", (v) => Math.round(v));
+      // slots fill on
+      tl.fromTo("#s4 .slots i.on", { scale: 0 }, { scale: 1, duration: 0.3, stagger: 0.05, ease: "back.out(2)" }, 18.2);
+      // equalizer bars
+      tl.fromTo("#s4 .wave span", { scaleY: 0 }, { scaleY: 1, duration: 0.4, stagger: 0.05, ease: "power2.out" }, 18.2);
+      // ambient
+      tl.to("#s4 .live-badge .pulse", { opacity: 0.25, scale: 1.4, duration: 0.6, yoyo: true, repeat: 5, ease: "sine.inOut" }, 18.0);
+      tl.to("#s4 .wave span", { scaleY: 0.4, duration: 0.45, yoyo: true, repeat: 6, ease: "sine.inOut", stagger: 0.06 }, 19.0);
+      tl.to("#s4 .g1", { scale: 1.16, opacity: 0.8, duration: 2.2, yoyo: true, repeat: 1, ease: "sine.inOut" }, 18.0);
+
+      /* ===== TRANSITION 4 → 5 : blur crossfade @22.1 ===== */
+      tl.to("#s4", { filter: "blur(10px)", scale: 1.03, opacity: 0, duration: 0.5, ease: "power2.inOut" }, 22.1);
+      tl.fromTo("#s5", { filter: "blur(10px)", scale: 0.97, opacity: 0 }, { filter: "blur(0px)", scale: 1, opacity: 1, duration: 0.55, ease: "power2.inOut" }, 22.2);
+
+      /* ================= SCENE 5  (22.2 → 28.0) ================= */
+      tl.fromTo("#s5 .head h2", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.6, ease: "expo.out" }, 22.5);
+      tl.fromTo("#s5 .head .note", { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 0.5, ease: "power2.out" }, 22.8);
+      tl.fromTo("#s5 .bar", { opacity: 0, x: -40 }, { opacity: 1, x: 0, duration: 0.45, stagger: 0.14, ease: "power2.out" }, 22.9);
+      tl.fromTo("#s5 .reg-mark", { opacity: 0 }, { opacity: 1, duration: 0.5 }, 22.9);
+      // set fill widths + colors, then grow each
+      document.querySelectorAll("#s5 .bar").forEach((bar, i) => {
+        const fill = bar.querySelector(".fill");
+        const c = bar.dataset.c;
+        fill.style.width = bar.dataset.w + "%";
+        fill.style.background = "linear-gradient(90deg, " + c + "66, " + c + ")";
+        fill.style.boxShadow = "0 0 18px " + c + "55";
+        const at = 23.2 + i * 0.16;
+        tl.fromTo(fill, { scaleX: 0 }, { scaleX: 1, duration: 0.7, ease: "power3.out" }, at);
+        const mult = +bar.dataset.mult;
+        counter(bar.querySelector(".mult"), mult, at, 0.7, "power2.out", (v) => Math.round(v) + "×");
+      });
+      // ambient: legendary bar shimmer
+      tl.to("#s5 .bar:last-child .fill", { filter: "brightness(1.3)", duration: 0.8, yoyo: true, repeat: 3, ease: "sine.inOut" }, 25.2);
+      tl.to("#s5 .g1", { scale: 1.12, duration: 2.6, yoyo: true, repeat: 1, ease: "sine.inOut" }, 23.5);
+
+      /* ===== TRANSITION 5 → 6 : slow crossfade @28.0 ===== */
+      tl.to("#s5", { opacity: 0, duration: 0.6, ease: "power2.inOut" }, 28.0);
+      tl.fromTo("#s6", { opacity: 0 }, { opacity: 1, duration: 0.7, ease: "power2.inOut" }, 28.0);
+
+      /* ================= SCENE 6  (28.0 → 35.0) ================= */
+      tl.fromTo("#s6 .mark", { opacity: 0, y: -50, scale: 0.6, rotation: -10 }, { opacity: 1, y: 0, scale: 1, rotation: 0, duration: 0.6, ease: "back.out(2)" }, 28.5);
+      tl.fromTo("#s6 .word", { opacity: 0, scale: 0.9, letterSpacing: "0.12em" }, { opacity: 1, scale: 1, letterSpacing: "-0.005em", duration: 0.9, ease: "expo.out" }, 28.7);
+      tl.fromTo("#s6 .word .dot", { color: "#eef2fb" }, { color: "#ffd23f", duration: 0.5 }, 29.4);
+      tl.fromTo("#s6 .tag", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 29.2);
+      tl.fromTo("#s6 .stack", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: "power1.out" }, 29.6);
+      tl.fromTo("#s6 .url", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 29.9);
+      // ambient hold (breathing brand)
+      tl.to("#s6 .mark", { y: -14, duration: 1.6, yoyo: true, repeat: 2, ease: "sine.inOut" }, 30.6);
+      tl.to("#s6 .g1", { scale: 1.1, duration: 2.4, yoyo: true, repeat: 1, ease: "sine.inOut" }, 30.0);
+      tl.to("#s6 .g2", { scale: 1.16, opacity: 0.85, duration: 2.8, yoyo: true, repeat: 1, ease: "sine.inOut" }, 30.2);
+      tl.to("#s6 .url b", { opacity: 0.4, duration: 0.7, yoyo: true, repeat: 4, ease: "sine.inOut" }, 31.0);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>
