@@ -11,28 +11,27 @@
         box-sizing: border-box;
       }
       :root {
-        --bg: #0a0e1c;
-        --bg2: #070a15;
-        --panel: #121a36;
-        --fg: #eef2fb;
-        --dim: #c3cdea;
-        --amber: #ffd23f; /* lightning */
-        --teal: #34e3c4; /* aurora */
-        --blue: #5aa9ff;
-        --violet: #9a8bff;
-        --red: #ff6b6b;
+        --bg: #08060f;
+        --ink: #f6f4ff;
+        --magenta: #f72585;
+        --pink: #ff70a6;
+        --cyan: #48bfe3;
+        --aqua: #6fffe9;
+        --lime: #e9ff70;
+        --yellow: #ffd23f;
+        --violet: #9d4edd;
       }
       html,
       body {
         width: 1920px;
         height: 1080px;
         overflow: hidden;
-        background: var(--bg2);
-        font-family: "Montserrat", sans-serif;
-        color: var(--fg);
+        background: #000;
+        font-family: "Bebas Neue", sans-serif;
+        color: var(--ink);
       }
 
-      /* ---------- Scene shell ---------- */
+      /* ---------------- scenes ---------------- */
       .scene {
         position: absolute;
         inset: 0;
@@ -51,21 +50,11 @@
       #s6 {
         opacity: 0;
       }
-      #s2 {
-        z-index: 2;
-      }
-      #s3 {
-        z-index: 3;
-      }
-      #s4 {
-        z-index: 4;
-      }
-      #s5 {
-        z-index: 5;
-      }
-      #s6 {
-        z-index: 6;
-      }
+      #s2 { z-index: 2; }
+      #s3 { z-index: 3; }
+      #s4 { z-index: 4; }
+      #s5 { z-index: 5; }
+      #s6 { z-index: 6; }
 
       .wrap {
         position: relative;
@@ -74,570 +63,287 @@
         height: 100%;
         display: flex;
         flex-direction: column;
+        justify-content: center;
+        padding: 0 140px 90px;
         box-sizing: border-box;
       }
 
-      /* ---------- Shared decoratives ---------- */
+      /* ---------------- shared FX ---------------- */
       .glow {
         position: absolute;
         border-radius: 50%;
-        filter: blur(70px);
+        filter: blur(80px);
         z-index: 0;
         pointer-events: none;
       }
-      .grid-bg {
+      .eq {
         position: absolute;
-        inset: 0;
-        z-index: 0;
-        background-image: linear-gradient(rgba(120, 150, 220, 0.06) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(120, 150, 220, 0.06) 1px, transparent 1px);
-        background-size: 96px 96px;
-        mask-image: radial-gradient(circle at 50% 45%, #000 30%, transparent 80%);
-      }
-      .ghost {
-        position: absolute;
-        font-family: "Bebas Neue", sans-serif;
-        color: rgba(170, 190, 240, 0.05);
-        white-space: nowrap;
-        z-index: 0;
-        letter-spacing: -0.02em;
+        display: flex;
+        align-items: flex-end;
+        gap: 10px;
+        z-index: 1;
         pointer-events: none;
       }
-      .eyebrow {
-        font-family: "IBM Plex Mono", monospace;
-        font-size: 24px;
-        letter-spacing: 0.42em;
-        text-transform: uppercase;
-        color: var(--teal);
-        font-weight: 500;
+      .eq span {
+        width: 18px;
+        border-radius: 3px 3px 0 0;
+        transform-origin: bottom;
       }
       .mono {
         font-family: "IBM Plex Mono", monospace;
       }
-      .anton {
+      .chroma {
+        text-shadow: 0.04em 0 rgba(247, 37, 133, 0.9), -0.04em 0 rgba(72, 191, 227, 0.9),
+          0 0 0.25em rgba(255, 255, 255, 0.15);
+      }
+      .display {
         font-family: "Bebas Neue", sans-serif;
-        font-weight: 400;
+        line-height: 0.86;
         letter-spacing: 0.01em;
       }
-      .reg-mark {
-        position: absolute;
-        font-family: "IBM Plex Mono", monospace;
-        font-size: 18px;
-        letter-spacing: 0.3em;
-        color: rgba(198, 210, 238, 0.92);
-        z-index: 6;
-      }
 
-      /* ================= SCENE 1 — HOOK ================= */
-      #s1 .wrap {
-        justify-content: center;
-        padding: 0 160px;
-      }
-      #s1 .g1 {
-        width: 1100px;
-        height: 1100px;
-        left: -120px;
-        top: -260px;
-        background: radial-gradient(circle, rgba(255, 210, 63, 0.5), transparent 65%);
-      }
-      #s1 .g2 {
-        width: 1000px;
-        height: 1000px;
-        right: -160px;
-        bottom: -300px;
-        background: radial-gradient(circle, rgba(52, 227, 196, 0.42), transparent 65%);
-      }
-      #s1 .ghost {
-        font-size: 560px;
-        right: -40px;
-        top: 40px;
-      }
-      #s1 .hero {
-        font-size: 188px;
-        line-height: 0.92;
-        letter-spacing: -0.01em;
-      }
-      #s1 .hero .dot {
-        color: var(--amber);
-      }
-      #s1 .sub {
-        font-size: 38px;
-        font-weight: 300;
-        color: var(--dim);
-        max-width: 1080px;
-        margin-top: 30px;
-        line-height: 1.35;
-      }
-      #s1 .eyebrow {
-        margin-bottom: 30px;
-      }
-      .bolt {
+      /* GLOBAL OVERLAYS (persist across cuts) */
+      #beatglow {
         position: absolute;
-        right: 220px;
-        top: 150px;
-        width: 230px;
-        z-index: 4;
-        filter: drop-shadow(0 0 26px rgba(255, 210, 63, 0.65));
-      }
-      .bolt path {
-        fill: var(--amber);
-      }
-      #s1 .rule {
-        height: 3px;
-        width: 520px;
-        background: linear-gradient(90deg, var(--amber), transparent);
-        margin-top: 44px;
-        transform-origin: left center;
-      }
-      .particle {
-        position: absolute;
-        width: 9px;
-        height: 9px;
-        border-radius: 50%;
-        background: var(--teal);
-        z-index: 3;
-        box-shadow: 0 0 14px rgba(52, 227, 196, 0.8);
-      }
-
-      /* ================= SCENE 2 — SHIFT ================= */
-      #s2 .g1 {
-        width: 1200px;
-        height: 1200px;
-        right: -260px;
-        top: -260px;
-        background: radial-gradient(circle, rgba(255, 210, 63, 0.34), transparent 66%);
-      }
-      #s2 .wrap {
-        flex-direction: row;
-        padding: 130px 150px;
-        gap: 0;
-        align-items: stretch;
-      }
-      #s2 .col {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-      }
-      #s2 .col.left {
-        padding-right: 90px;
-        opacity: 0.62;
-      }
-      #s2 .divider {
-        width: 2px;
-        align-self: stretch;
-        background: linear-gradient(180deg, transparent, rgba(170, 190, 240, 0.4), transparent);
-        transform-origin: center top;
-      }
-      #s2 .col.right {
-        padding-left: 90px;
-      }
-      .kicker {
-        font-family: "IBM Plex Mono", monospace;
-        font-size: 22px;
-        letter-spacing: 0.34em;
-        text-transform: uppercase;
-        margin-bottom: 26px;
-      }
-      #s2 .left .kicker {
-        color: var(--dim);
-      }
-      #s2 .right .kicker {
-        color: var(--amber);
-      }
-      #s2 .old-title {
-        font-family: "Bebas Neue", sans-serif;
-        font-size: 74px;
-        color: #97a3c6;
-        line-height: 1;
-        position: relative;
-        display: inline-block;
-      }
-      #s2 .strike {
-        position: absolute;
-        left: -6px;
-        top: 52%;
-        height: 7px;
-        width: calc(100% + 12px);
-        background: var(--red);
-        transform-origin: left center;
-        border-radius: 4px;
-      }
-      #s2 .old-desc {
-        font-size: 30px;
-        font-weight: 300;
-        color: #97a3c6;
-        margin-top: 26px;
-        line-height: 1.4;
-        max-width: 540px;
-      }
-      #s2 .flow {
-        display: flex;
-        flex-direction: column;
-        gap: 22px;
-      }
-      #s2 .step {
-        display: flex;
-        align-items: center;
-        gap: 26px;
-      }
-      #s2 .step .num {
-        font-family: "IBM Plex Mono", monospace;
-        font-size: 26px;
-        color: var(--teal);
-        width: 44px;
-      }
-      #s2 .step .label {
-        font-size: 52px;
-        font-weight: 800;
-        letter-spacing: -0.01em;
-      }
-      #s2 .step .arrow {
-        color: var(--amber);
-        font-size: 40px;
-        margin-left: 70px;
-      }
-
-      /* ================= SCENE 3 — ALGORITHMS ================= */
-      #s3 .g1 {
-        width: 1000px;
-        height: 1000px;
-        left: 40%;
-        top: -340px;
-        transform: translateX(-50%);
-        background: radial-gradient(circle, rgba(90, 169, 255, 0.32), transparent 66%);
-      }
-      #s3 .wrap {
-        padding: 110px 150px;
-        justify-content: flex-start;
-      }
-      #s3 .head {
-        display: flex;
-        align-items: flex-end;
-        justify-content: space-between;
-        margin-bottom: 44px;
-      }
-      #s3 .head h2 {
-        font-family: "Bebas Neue", sans-serif;
-        font-size: 96px;
-        line-height: 0.92;
-        letter-spacing: 0.005em;
-      }
-      #s3 .head h2 em {
-        font-style: normal;
-        color: var(--amber);
-      }
-      #s3 .scan {
-        font-family: "IBM Plex Mono", monospace;
-        font-size: 22px;
-        color: var(--teal);
-        letter-spacing: 0.22em;
-        text-align: right;
-        padding-bottom: 10px;
-      }
-      #s3 .rows {
-        display: flex;
-        flex-direction: column;
-      }
-      #s3 .row {
-        display: grid;
-        grid-template-columns: 120px 460px 1fr;
-        align-items: center;
-        gap: 36px;
-        padding: 26px 8px;
-        border-top: 2px solid rgba(170, 190, 240, 0.14);
-      }
-      #s3 .row:last-child {
-        border-bottom: 2px solid rgba(170, 190, 240, 0.14);
-      }
-      #s3 .row .idx {
-        font-family: "IBM Plex Mono", monospace;
-        font-size: 40px;
-        color: var(--teal);
-      }
-      #s3 .row .name {
-        font-size: 46px;
-        font-weight: 800;
-        letter-spacing: -0.01em;
-      }
-      #s3 .row .desc {
-        font-size: 28px;
-        font-weight: 300;
-        color: var(--dim);
-      }
-      #s3 .row .dot {
-        width: 14px;
-        height: 14px;
-        border-radius: 50%;
-        background: var(--amber);
-        display: inline-block;
-        margin-left: 14px;
-        box-shadow: 0 0 12px rgba(255, 210, 63, 0.8);
-        vertical-align: middle;
-      }
-
-      /* ================= SCENE 4 — LIVE CAPTURE ================= */
-      #s4 {
-        background: radial-gradient(circle at 50% 120%, #14102a, var(--bg));
-      }
-      #s4 .g1 {
-        width: 1100px;
-        height: 1100px;
         left: 50%;
-        top: 30%;
+        top: 50%;
+        width: 1500px;
+        height: 1500px;
         transform: translate(-50%, -50%);
-        background: radial-gradient(circle, rgba(255, 107, 107, 0.28), transparent 64%);
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(247, 37, 133, 0.16), transparent 60%);
+        z-index: 40;
+        pointer-events: none;
+        mix-blend-mode: screen;
       }
-      #s4 .wrap {
-        padding: 110px 150px;
-        justify-content: center;
+      #scanlines {
+        position: absolute;
+        left: 0;
+        top: -60%;
+        width: 100%;
+        height: 220%;
+        z-index: 60;
+        pointer-events: none;
+        background-image: repeating-linear-gradient(
+          to bottom,
+          rgba(255, 255, 255, 0.06) 0px,
+          rgba(255, 255, 255, 0.06) 1px,
+          transparent 1px,
+          transparent 4px
+        );
+        opacity: 0.55;
+        mix-blend-mode: overlay;
       }
-      #s4 .topline {
+      #vignette {
+        position: absolute;
+        inset: 0;
+        z-index: 58;
+        pointer-events: none;
+        background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.65) 100%);
+      }
+      #flash {
+        position: absolute;
+        inset: 0;
+        z-index: 80;
+        background: #fff;
+        opacity: 0;
+        pointer-events: none;
+        mix-blend-mode: screen;
+      }
+      /* top status bar */
+      #status {
+        position: absolute;
+        top: 34px;
+        left: 0;
+        width: 100%;
+        padding: 0 48px;
         display: flex;
+        justify-content: space-between;
         align-items: center;
-        gap: 24px;
-        margin-bottom: 26px;
+        z-index: 65;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 22px;
+        letter-spacing: 0.28em;
+        color: var(--aqua);
       }
-      .live-badge {
+      #status .rec {
         display: inline-flex;
         align-items: center;
-        gap: 14px;
-        background: rgba(255, 107, 107, 0.14);
-        border: 2px solid var(--red);
-        color: #ffb3b3;
-        font-family: "IBM Plex Mono", monospace;
-        font-size: 24px;
-        letter-spacing: 0.3em;
-        padding: 12px 22px;
-        border-radius: 6px;
+        gap: 12px;
+        color: var(--magenta);
       }
-      .live-badge .pulse {
-        width: 14px;
-        height: 14px;
+      #status .rec b {
+        width: 16px;
+        height: 16px;
         border-radius: 50%;
-        background: var(--red);
-        box-shadow: 0 0 14px var(--red);
+        background: var(--magenta);
+        box-shadow: 0 0 14px var(--magenta);
       }
-      #s4 h2 {
-        font-family: "Bebas Neue", sans-serif;
-        font-size: 118px;
-        line-height: 0.9;
-        margin-bottom: 56px;
-      }
-      #s4 h2 em {
-        font-style: normal;
-        color: var(--amber);
-      }
-      #s4 .metrics {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 40px;
-      }
-      #s4 .metric {
-        background: rgba(18, 26, 54, 0.72);
-        border: 2px solid rgba(170, 190, 240, 0.16);
-        border-radius: 16px;
-        padding: 40px 44px;
-        position: relative;
-        overflow: hidden;
-      }
-      #s4 .metric .ml {
-        font-family: "IBM Plex Mono", monospace;
-        font-size: 20px;
-        letter-spacing: 0.24em;
-        text-transform: uppercase;
-        color: var(--dim);
-        margin-bottom: 18px;
-      }
-      #s4 .metric .mv {
-        font-family: "Bebas Neue", sans-serif;
-        font-size: 84px;
-        line-height: 0.95;
-        color: var(--amber);
-        font-variant-numeric: tabular-nums;
-      }
-      #s4 .metric .mu {
-        font-size: 26px;
-        font-weight: 300;
-        color: var(--fg);
-        margin-top: 12px;
-      }
-      #s4 .ring {
+      /* ticker */
+      #ticker {
         position: absolute;
-        right: 26px;
-        top: 26px;
-      }
-      #s4 .ring circle {
-        fill: none;
-        stroke-width: 9;
-      }
-      #s4 .slots {
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 64px;
         display: flex;
-        flex-wrap: wrap;
-        gap: 9px;
-        margin-top: 18px;
-        max-width: 280px;
-      }
-      #s4 .slots i {
-        width: 22px;
-        height: 22px;
-        border-radius: 5px;
-        background: rgba(170, 190, 240, 0.16);
-        display: block;
-      }
-      #s4 .slots i.on {
-        background: var(--teal);
-        box-shadow: 0 0 10px rgba(52, 227, 196, 0.7);
-      }
-      .wave {
-        display: flex;
-        align-items: flex-end;
-        gap: 7px;
-        height: 84px;
-        margin-top: 14px;
-      }
-      .wave span {
-        width: 12px;
-        background: var(--teal);
-        border-radius: 4px;
-        transform-origin: bottom;
-      }
-
-      /* ================= SCENE 5 — RARITY ================= */
-      #s5 .g1 {
-        width: 1100px;
-        height: 1100px;
-        right: -260px;
-        bottom: -340px;
-        background: radial-gradient(circle, rgba(154, 139, 255, 0.34), transparent 66%);
-      }
-      #s5 .wrap {
-        padding: 110px 150px;
-        justify-content: center;
-      }
-      #s5 .head {
-        display: flex;
-        align-items: baseline;
-        gap: 30px;
-        margin-bottom: 50px;
-      }
-      #s5 .head h2 {
-        font-family: "Bebas Neue", sans-serif;
-        font-size: 96px;
-        line-height: 0.92;
-      }
-      #s5 .head .note {
-        font-family: "IBM Plex Mono", monospace;
-        font-size: 24px;
-        color: var(--dim);
-        letter-spacing: 0.1em;
-      }
-      #s5 .head .note b {
-        color: var(--amber);
-        font-weight: 600;
-      }
-      #s5 .bars {
-        display: flex;
-        flex-direction: column;
-        gap: 22px;
-      }
-      #s5 .bar {
-        display: grid;
-        grid-template-columns: 300px 1fr 150px;
         align-items: center;
-        gap: 30px;
-      }
-      #s5 .bar .tier {
-        font-size: 38px;
-        font-weight: 800;
-        letter-spacing: -0.01em;
-      }
-      #s5 .track {
-        height: 40px;
-        background: rgba(170, 190, 240, 0.08);
-        border-radius: 8px;
         overflow: hidden;
+        z-index: 62;
+        background: rgba(247, 37, 133, 0.12);
+        border-top: 3px solid var(--magenta);
       }
-      #s5 .fill {
-        height: 100%;
-        border-radius: 8px;
-        transform-origin: left center;
-      }
-      #s5 .bar .mult {
-        font-family: "Bebas Neue", sans-serif;
-        font-size: 54px;
-        text-align: right;
-        font-variant-numeric: tabular-nums;
-      }
-
-      /* ================= SCENE 6 — CTA ================= */
-      #s6 {
-        background: radial-gradient(circle at 50% 46%, #11183a, var(--bg2));
-      }
-      #s6 .g1 {
-        width: 1200px;
-        height: 1200px;
-        left: 50%;
-        top: 44%;
-        transform: translate(-50%, -50%);
-        background: radial-gradient(circle, rgba(255, 210, 63, 0.4), transparent 62%);
-      }
-      #s6 .g2 {
-        width: 760px;
-        height: 760px;
-        left: 50%;
-        top: 44%;
-        transform: translate(-50%, -50%);
-        background: radial-gradient(circle, rgba(52, 227, 196, 0.32), transparent 64%);
-      }
-      #s6 .wrap {
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        padding: 0 160px;
-      }
-      #s6 .mark {
-        width: 120px;
-        margin-bottom: 34px;
-        filter: drop-shadow(0 0 30px rgba(255, 210, 63, 0.7));
-      }
-      #s6 .mark path {
-        fill: var(--amber);
-      }
-      #s6 .word {
-        font-family: "Bebas Neue", sans-serif;
-        font-size: 168px;
-        line-height: 0.95;
-        letter-spacing: -0.005em;
-      }
-      #s6 .word .dot {
-        color: var(--amber);
-      }
-      #s6 .tag {
-        font-size: 44px;
-        font-weight: 300;
-        color: var(--fg);
-        margin-top: 26px;
-        letter-spacing: 0.01em;
-      }
-      #s6 .stack {
-        margin-top: 44px;
+      #ticker .tick {
+        display: flex;
+        white-space: nowrap;
         font-family: "IBM Plex Mono", monospace;
         font-size: 26px;
-        letter-spacing: 0.18em;
-        color: var(--teal);
+        font-weight: 500;
+        letter-spacing: 0.22em;
+        color: var(--lime);
       }
-      #s6 .url {
-        margin-top: 18px;
+      #ticker .tick b {
+        color: var(--cyan);
+        margin: 0 22px;
+      }
+
+      /* ============ SCENE 1 — HOOK ============ */
+      #s1 .g1 { width: 1200px; height: 1200px; left: -160px; top: -200px;
+        background: radial-gradient(circle, rgba(247, 37, 133, 0.6), transparent 62%); }
+      #s1 .g2 { width: 1100px; height: 1100px; right: -200px; bottom: -260px;
+        background: radial-gradient(circle, rgba(72, 191, 227, 0.55), transparent 62%); }
+      #s1 .eqL { left: 90px; bottom: 120px; height: 360px; }
+      #s1 .eqR { right: 90px; top: 120px; height: 320px; transform: scaleY(-1); }
+      #s1 .kick {
         font-family: "IBM Plex Mono", monospace;
         font-size: 30px;
-        letter-spacing: 0.22em;
-        color: var(--dim);
+        letter-spacing: 0.5em;
+        color: var(--lime);
+        margin-bottom: 24px;
       }
-      #s6 .url b {
-        color: var(--amber);
-        font-weight: 600;
+      #s1 .hero { font-size: 172px; }
+      #s1 .hero .dot { color: var(--yellow); }
+      #s1 .sub {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 32px;
+        letter-spacing: 0.06em;
+        color: var(--cyan);
+        margin-top: 30px;
+        font-weight: 500;
       }
+
+      /* ============ SCENE 2 — SHIFT ============ */
+      #s2 { background: radial-gradient(circle at 70% 30%, #1a0826, var(--bg)); }
+      #s2 .g1 { width: 1100px; height: 1100px; left: 50%; top: 50%; transform: translate(-50%, -50%);
+        background: radial-gradient(circle, rgba(157, 78, 221, 0.4), transparent 64%); }
+      #s2 .wrap { align-items: flex-start; }
+      #s2 .forget {
+        font-size: 120px;
+        color: #5a4b6e;
+        position: relative;
+        display: inline-block;
+      }
+      #s2 .forget .x {
+        position: absolute; left: -10px; top: 50%; height: 10px; width: calc(100% + 20px);
+        background: var(--magenta); transform-origin: left center; box-shadow: 0 0 18px var(--magenta);
+      }
+      #s2 .golive { font-size: 200px; color: var(--lime); margin-top: 6px; }
+      #s2 .flow {
+        display: flex; gap: 30px; align-items: center; margin-top: 40px;
+        font-family: "Bebas Neue", sans-serif; font-size: 84px;
+      }
+      #s2 .flow .w1 { color: var(--cyan); }
+      #s2 .flow .w2 { color: var(--pink); }
+      #s2 .flow .w3 { color: var(--yellow); }
+      #s2 .flow .sep { color: var(--ink); font-size: 60px; opacity: 0.6; }
+
+      /* ============ SCENE 3 — ALGORITHMS ============ */
+      #s3 { background: radial-gradient(circle at 30% 70%, #04161c, var(--bg)); }
+      #s3 .g1 { width: 1000px; height: 1000px; right: -160px; top: -200px;
+        background: radial-gradient(circle, rgba(72, 191, 227, 0.5), transparent 62%); }
+      #s3 .eqB { left: 0; bottom: 64px; width: 100%; height: 200px; justify-content: center; opacity: 0.5; }
+      #s3 .htag {
+        font-family: "IBM Plex Mono", monospace; font-size: 28px; letter-spacing: 0.4em;
+        color: var(--magenta); margin-bottom: 8px;
+      }
+      #s3 .htitle { font-size: 150px; margin-bottom: 30px; }
+      #s3 .htitle b { color: var(--yellow); font-weight: 400; }
+      #s3 .algos { display: flex; flex-direction: column; gap: 8px; }
+      #s3 .algo {
+        display: flex; align-items: baseline; gap: 28px;
+        font-family: "Bebas Neue", sans-serif; font-size: 78px; line-height: 1;
+      }
+      #s3 .algo .n { font-family: "IBM Plex Mono", monospace; font-size: 34px; width: 60px; opacity: 0.7; }
+      #s3 .algo:nth-child(1) .t { color: var(--magenta); }
+      #s3 .algo:nth-child(2) .t { color: var(--cyan); }
+      #s3 .algo:nth-child(3) .t { color: var(--lime); }
+      #s3 .algo:nth-child(4) .t { color: var(--pink); }
+      #s3 .algo:nth-child(5) .t { color: var(--yellow); }
+
+      /* ============ SCENE 4 — CAPTURE / FOMO ============ */
+      #s4 { background: radial-gradient(circle at 50% 60%, #260814, var(--bg)); }
+      #s4 .g1 { width: 1200px; height: 1200px; left: 50%; top: 45%; transform: translate(-50%, -50%);
+        background: radial-gradient(circle, rgba(247, 37, 133, 0.45), transparent 60%); }
+      #s4 .wrap { align-items: center; text-align: center; }
+      #s4 .live {
+        font-family: "IBM Plex Mono", monospace; font-size: 34px; letter-spacing: 0.4em;
+        color: var(--ink); background: var(--magenta); padding: 12px 28px; border-radius: 6px;
+        box-shadow: 0 0 30px rgba(247, 37, 133, 0.7); margin-bottom: 30px;
+      }
+      #s4 .big { font-size: 150px; }
+      #s4 .big em { font-style: normal; color: var(--magenta); }
+      #s4 .stats { display: flex; gap: 90px; margin-top: 44px; }
+      #s4 .stat { display: flex; flex-direction: column; align-items: center; }
+      #s4 .stat .v {
+        font-family: "Bebas Neue", sans-serif; font-size: 150px; line-height: 0.9;
+        color: var(--yellow); font-variant-numeric: tabular-nums;
+      }
+      #s4 .stat .v.cy { color: var(--cyan); }
+      #s4 .stat .l {
+        font-family: "IBM Plex Mono", monospace; font-size: 24px; letter-spacing: 0.2em;
+        color: var(--ink); margin-top: 6px; opacity: 0.85;
+      }
+      #s4 .stat .sl { display: flex; gap: 8px; margin-top: 14px; }
+      #s4 .stat .sl i { width: 20px; height: 20px; border-radius: 4px; background: rgba(255,255,255,0.14); }
+      #s4 .stat .sl i.on { background: var(--aqua); box-shadow: 0 0 10px var(--aqua); }
+
+      /* ============ SCENE 5 — RARITY ============ */
+      #s5 { background: radial-gradient(circle at 70% 70%, #150826, var(--bg)); }
+      #s5 .g1 { width: 1100px; height: 1100px; left: -200px; bottom: -260px;
+        background: radial-gradient(circle, rgba(157, 78, 221, 0.5), transparent 62%); }
+      #s5 .htitle { font-size: 130px; margin-bottom: 6px; }
+      #s5 .hsub { font-family: "IBM Plex Mono", monospace; font-size: 26px; letter-spacing: 0.2em;
+        color: var(--lime); margin-bottom: 36px; }
+      #s5 .htitle b, #s5 .hsub b { color: var(--yellow); }
+      #s5 .bars { display: flex; flex-direction: column; gap: 18px; }
+      #s5 .bar { display: grid; grid-template-columns: 360px 1fr 150px; align-items: center; gap: 28px; }
+      #s5 .bar .tier { font-family: "Bebas Neue", sans-serif; font-size: 56px; line-height: 1; }
+      #s5 .track { height: 44px; background: rgba(255, 255, 255, 0.06); border-radius: 6px; overflow: hidden; }
+      #s5 .fill { height: 100%; border-radius: 6px; transform-origin: left center; }
+      #s5 .bar .m {
+        font-family: "Bebas Neue", sans-serif; font-size: 70px; text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* ============ SCENE 6 — CTA ============ */
+      #s6 { background: radial-gradient(circle at 50% 45%, #1a0826, #000); }
+      #s6 .g1 { width: 1300px; height: 1300px; left: 50%; top: 44%; transform: translate(-50%, -50%);
+        background: radial-gradient(circle, rgba(247, 37, 133, 0.5), transparent 58%); }
+      #s6 .g2 { width: 900px; height: 900px; left: 50%; top: 44%; transform: translate(-50%, -50%);
+        background: radial-gradient(circle, rgba(72, 191, 227, 0.4), transparent 60%); }
+      #s6 .wrap { align-items: center; text-align: center; padding-bottom: 90px; }
+      #s6 .word { font-size: 172px; }
+      #s6 .word .dot { color: var(--yellow); }
+      #s6 .tag { font-family: "Bebas Neue", sans-serif; font-size: 96px; color: var(--lime); margin-top: 10px; }
+      #s6 .stack {
+        font-family: "IBM Plex Mono", monospace; font-size: 28px; letter-spacing: 0.22em;
+        color: var(--cyan); margin-top: 34px;
+      }
+      #s6 .url {
+        font-family: "IBM Plex Mono", monospace; font-size: 34px; letter-spacing: 0.24em;
+        color: var(--ink); margin-top: 16px;
+      }
+      #s6 .url b { color: var(--magenta); }
     </style>
   </head>
   <body>
@@ -645,306 +351,231 @@
       id="root"
       data-composition-id="main"
       data-start="0"
-      data-duration="35"
+      data-duration="31"
       data-width="1920"
       data-height="1080"
     >
-      <!-- ============ SCENE 1 — HOOK ============ -->
-      <div id="s1" class="scene">
-        <div data-layout-ignore class="glow g1"></div>
-        <div data-layout-ignore class="glow g2"></div>
-        <div class="grid-bg"></div>
-        <div class="ghost" data-layout-ignore>STORM</div>
-        <svg class="bolt" viewBox="0 0 100 200" aria-hidden="true">
-          <path d="M58 0 L18 110 L48 110 L34 200 L92 78 L60 78 Z" />
-        </svg>
-        <span class="particle" style="left: 18%; top: 30%"></span>
-        <span class="particle" style="left: 30%; top: 72%; background: var(--amber); box-shadow: 0 0 14px rgba(255,210,63,0.8)"></span>
-        <span class="particle" style="left: 80%; top: 66%"></span>
-        <div class="reg-mark" style="left: 64px; bottom: 56px">EST · 2026 · GHOSTNET</div>
-        <div class="reg-mark" style="right: 64px; top: 56px">◢ LIVE FEED</div>
+      <!-- ===== SCENE 1 — HOOK ===== -->
+      <div id="s1" class="scene" data-layout-allow-overflow>
+        <div class="glow g1"></div>
+        <div class="glow g2"></div>
+        <div class="eq eqL"><span style="height:40%;background:var(--magenta)"></span><span style="height:75%;background:var(--cyan)"></span><span style="height:55%;background:var(--lime)"></span><span style="height:90%;background:var(--yellow)"></span><span style="height:60%;background:var(--pink)"></span><span style="height:80%;background:var(--cyan)"></span></div>
+        <div class="eq eqR"><span style="height:70%;background:var(--cyan)"></span><span style="height:45%;background:var(--lime)"></span><span style="height:85%;background:var(--magenta)"></span><span style="height:55%;background:var(--yellow)"></span><span style="height:95%;background:var(--pink)"></span></div>
         <div class="wrap">
-          <div class="eyebrow">Live Weather · Tezos NFT</div>
-          <h1 class="hero anton">WEATHERNFT<span class="dot">.LIVE</span></h1>
-          <p class="sub">Hunt live weather events detected by AI — and capture each fleeting moment as a one-of-a-kind NFT.</p>
-          <div class="rule"></div>
+          <div class="kick">LIVE WEATHER // TEZOS NFT</div>
+          <h1 class="hero display chroma">WEATHERNFT<span class="dot">.LIVE</span></h1>
+          <div class="sub">&gt;&gt; HUNT THE STORM. CAPTURE THE MOMENT. MINT IT.</div>
         </div>
       </div>
 
-      <!-- ============ SCENE 2 — THE SHIFT ============ -->
+      <!-- ===== SCENE 2 — SHIFT ===== -->
       <div id="s2" class="scene" data-layout-allow-overflow>
-        <div data-layout-ignore class="glow g1"></div>
-        <div class="grid-bg"></div>
-        <div class="reg-mark" style="left: 64px; top: 56px">// THE SHIFT</div>
+        <div class="glow g1"></div>
         <div class="wrap">
-          <div class="col left">
-            <div class="kicker">Traditional NFTs</div>
-            <div class="old-title">STATIC IMAGES<span class="strike"></span></div>
-            <p class="old-desc">A fixed collection. You browse a gallery, then buy a picture that never changes.</p>
-          </div>
-          <div class="divider"></div>
-          <div class="col right">
-            <div class="kicker">WeatherNFT</div>
-            <div class="flow">
-              <div class="step"><span class="num mono">01</span><span class="label">LIVE WEATHER STREAM</span></div>
-              <div class="step"><span class="num mono">02</span><span class="label">AI DETECTS THE MOMENT</span></div>
-              <div class="step"><span class="num mono">03</span><span class="label" style="color: var(--amber)">YOU CAPTURE IT</span></div>
-            </div>
+          <div class="forget display">FORGET STATIC<span class="x"></span></div>
+          <div class="golive display chroma">GO LIVE.</div>
+          <div class="flow">
+            <span class="w1">STREAM</span><span class="sep">→</span><span class="w2">DETECT</span><span class="sep">→</span><span class="w3">CAPTURE</span>
           </div>
         </div>
       </div>
 
-      <!-- ============ SCENE 3 — 5 AI ALGORITHMS ============ -->
+      <!-- ===== SCENE 3 — ALGORITHMS ===== -->
       <div id="s3" class="scene" data-layout-allow-overflow>
-        <div data-layout-ignore class="glow g1"></div>
-        <div class="grid-bg"></div>
-        <div class="reg-mark" style="right: 64px; bottom: 56px">SCANNING · 24/7 · GLOBAL</div>
+        <div class="glow g1"></div>
+        <div class="eq eqB"><span style="height:50%;background:var(--magenta)"></span><span style="height:80%;background:var(--cyan)"></span><span style="height:35%;background:var(--lime)"></span><span style="height:95%;background:var(--yellow)"></span><span style="height:60%;background:var(--pink)"></span><span style="height:75%;background:var(--cyan)"></span><span style="height:45%;background:var(--magenta)"></span><span style="height:85%;background:var(--lime)"></span></div>
         <div class="wrap">
-          <div class="head">
-            <h2 class="anton"><em>5</em> AI ALGORITHMS<br />SCANNING THE GLOBE</h2>
-            <div class="scan">[ STATUS: ONLINE ]<br />◢◢◢ SWEEPING</div>
-          </div>
-          <div class="rows">
-            <div class="row"><span class="idx mono">01</span><span class="name">Storm Hunter<i class="dot"></i></span><span class="desc">Detects severe weather formation as it builds</span></div>
-            <div class="row"><span class="idx mono">02</span><span class="name">Aurora Predictor<i class="dot"></i></span><span class="desc">Identifies northern-lights probability</span></div>
-            <div class="row"><span class="idx mono">03</span><span class="name">Micro Climate<i class="dot"></i></span><span class="desc">Finds unusual local conditions</span></div>
-            <div class="row"><span class="idx mono">04</span><span class="name">Extreme Weather<i class="dot"></i></span><span class="desc">Tracks dangerous, record-breaking events</span></div>
-            <div class="row"><span class="idx mono">05</span><span class="name">Temperature Anomaly<i class="dot"></i></span><span class="desc">Spots sudden temperature spikes</span></div>
+          <div class="htag">// 5 ALGORITHMS · SCANNING 24/7</div>
+          <div class="htitle display"><b>5</b> AI HUNTERS</div>
+          <div class="algos">
+            <div class="algo"><span class="n mono">01</span><span class="t">STORM HUNTER</span></div>
+            <div class="algo"><span class="n mono">02</span><span class="t">AURORA PREDICTOR</span></div>
+            <div class="algo"><span class="n mono">03</span><span class="t">MICRO CLIMATE</span></div>
+            <div class="algo"><span class="n mono">04</span><span class="t">EXTREME WEATHER</span></div>
+            <div class="algo"><span class="n mono">05</span><span class="t">TEMP ANOMALY</span></div>
           </div>
         </div>
       </div>
 
-      <!-- ============ SCENE 4 — LIVE CAPTURE / FOMO ============ -->
-      <div id="s4" class="scene">
-        <div data-layout-ignore class="glow g1"></div>
-        <div class="grid-bg"></div>
-        <div class="reg-mark" style="left: 64px; bottom: 56px">WEBSOCKET · WS://LIVE</div>
+      <!-- ===== SCENE 4 — CAPTURE / FOMO ===== -->
+      <div id="s4" class="scene" data-layout-allow-overflow>
+        <div class="glow g1"></div>
         <div class="wrap">
-          <div class="topline">
-            <span class="live-badge"><span class="pulse"></span>LIVE EVENT</span>
-          </div>
-          <h2 class="anton">EVENTS <em>VANISH</em> FAST.</h2>
-          <div class="metrics">
-            <div class="metric">
-              <svg class="ring" width="64" height="64" viewBox="0 0 64 64">
-                <circle cx="32" cy="32" r="27" stroke="rgba(170,190,240,0.18)" />
-                <circle id="ringFg" cx="32" cy="32" r="27" stroke="var(--amber)" stroke-linecap="round" transform="rotate(-90 32 32)" />
-              </svg>
-              <div class="ml">Event Window</div>
-              <div class="mv"><span id="win">15</span>–120</div>
-              <div class="mu">minutes, then it's gone</div>
-            </div>
-            <div class="metric">
-              <div class="ml">Capture Slots</div>
-              <div class="mv"><span id="slotN">1</span>–20</div>
-              <div class="mu">per event by rarity</div>
-              <div class="slots">
-                <i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
-              </div>
-            </div>
-            <div class="metric">
-              <div class="ml">Notifications</div>
-              <div class="mv" style="color: var(--teal)">REAL<br />TIME</div>
-              <div class="wave">
-                <span style="height: 30%"></span><span style="height: 70%"></span><span style="height: 45%"></span><span style="height: 95%"></span><span style="height: 55%"></span><span style="height: 80%"></span><span style="height: 35%"></span><span style="height: 65%"></span>
-              </div>
-            </div>
+          <div class="live mono">● LIVE EVENT ●</div>
+          <div class="big display chroma">EVENTS <em>VANISH</em> FAST</div>
+          <div class="stats">
+            <div class="stat"><span class="v"><span id="win">120</span>′</span><span class="l">WINDOW · 15–120 MIN</span></div>
+            <div class="stat"><span class="v cy">1–20</span><span class="l">SLOTS PER EVENT</span><span class="sl"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i></span></div>
+            <div class="stat"><span class="v">FOMO</span><span class="l">REAL-TIME · WSS</span></div>
           </div>
         </div>
       </div>
 
-      <!-- ============ SCENE 5 — RARITY ============ -->
-      <div id="s5" class="scene">
-        <div data-layout-ignore class="glow g1"></div>
-        <div class="grid-bg"></div>
-        <div class="reg-mark" style="left: 64px; top: 56px">// RARITY ENGINE</div>
+      <!-- ===== SCENE 5 — RARITY ===== -->
+      <div id="s5" class="scene" data-layout-allow-overflow>
+        <div class="glow g1"></div>
         <div class="wrap">
-          <div class="head">
-            <h2 class="anton">RARITY DRIVES VALUE</h2>
-            <div class="note">BASE <b>0.5 XTZ</b> × UP TO <b>30×</b></div>
-          </div>
+          <div class="htitle display">RARITY = <b>VALUE</b></div>
+          <div class="hsub mono">BASE <b>0.5 XTZ</b> × UP TO <b>30×</b></div>
           <div class="bars">
-            <div class="bar" data-mult="1" data-w="14" data-c="#aab8da">
-              <span class="tier" style="color: #aab8da">Common</span>
-              <div class="track"><div class="fill"></div></div>
-              <span class="mult">1×</span>
-            </div>
-            <div class="bar" data-mult="2" data-w="20" data-c="#34e3c4">
-              <span class="tier" style="color: #34e3c4">Uncommon</span>
-              <div class="track"><div class="fill"></div></div>
-              <span class="mult">2×</span>
-            </div>
-            <div class="bar" data-mult="5" data-w="33" data-c="#5aa9ff">
-              <span class="tier" style="color: #5aa9ff">Rare</span>
-              <div class="track"><div class="fill"></div></div>
-              <span class="mult">5×</span>
-            </div>
-            <div class="bar" data-mult="10" data-w="52" data-c="#9a8bff">
-              <span class="tier" style="color: #9a8bff">Epic</span>
-              <div class="track"><div class="fill"></div></div>
-              <span class="mult">10×</span>
-            </div>
-            <div class="bar" data-mult="30" data-w="100" data-c="#ffd23f">
-              <span class="tier" style="color: #ffd23f">Legendary</span>
-              <div class="track"><div class="fill"></div></div>
-              <span class="mult">30×</span>
-            </div>
+            <div class="bar" data-mult="1" data-w="14" data-c="#48bfe3"><span class="tier" style="color:#48bfe3">COMMON</span><div class="track"><div class="fill"></div></div><span class="m">1×</span></div>
+            <div class="bar" data-mult="2" data-w="22" data-c="#6fffe9"><span class="tier" style="color:#6fffe9">UNCOMMON</span><div class="track"><div class="fill"></div></div><span class="m">2×</span></div>
+            <div class="bar" data-mult="5" data-w="36" data-c="#e9ff70"><span class="tier" style="color:#e9ff70">RARE</span><div class="track"><div class="fill"></div></div><span class="m">5×</span></div>
+            <div class="bar" data-mult="10" data-w="56" data-c="#ff70a6"><span class="tier" style="color:#ff70a6">EPIC</span><div class="track"><div class="fill"></div></div><span class="m">10×</span></div>
+            <div class="bar" data-mult="30" data-w="100" data-c="#f72585"><span class="tier" style="color:#f72585">LEGENDARY</span><div class="track"><div class="fill"></div></div><span class="m">30×</span></div>
           </div>
         </div>
       </div>
 
-      <!-- ============ SCENE 6 — CTA ============ -->
-      <div id="s6" class="scene">
-        <div data-layout-ignore class="glow g1"></div>
-        <div data-layout-ignore class="glow g2"></div>
-        <div class="grid-bg"></div>
+      <!-- ===== SCENE 6 — CTA ===== -->
+      <div id="s6" class="scene" data-layout-allow-overflow>
+        <div class="glow g1"></div>
+        <div class="glow g2"></div>
         <div class="wrap">
-          <svg class="mark" viewBox="0 0 100 200" aria-hidden="true">
-            <path d="M58 0 L18 110 L48 110 L34 200 L92 78 L60 78 Z" />
-          </svg>
-          <h2 class="word anton">WEATHERNFT<span class="dot">.LIVE</span></h2>
-          <p class="tag">Hunt the sky. Own the storm.</p>
-          <div class="stack">BUILT ON TEZOS · FA2 · AI ART · IPFS · GUILDS</div>
+          <h2 class="word display chroma">WEATHERNFT<span class="dot">.LIVE</span></h2>
+          <div class="tag display">HUNT THE SKY. OWN THE STORM.</div>
+          <div class="stack">TEZOS · FA2 · AI ART · IPFS · GUILDS</div>
           <div class="url">weathernft.live · <b>GHOSTNET LIVE NOW</b></div>
         </div>
       </div>
+
+      <!-- ===== GLOBAL OVERLAYS ===== -->
+      <div id="beatglow"></div>
+      <div id="vignette"></div>
+      <div id="scanlines"></div>
+      <div id="status">
+        <span class="rec"><b></b>REC</span>
+        <span>WEATHERNFT_VJ_SET · GHOSTNET</span>
+      </div>
+      <div id="ticker" data-layout-allow-overflow>
+        <div class="tick">
+          <span>LIVE WEATHER<b>●</b>AI HUNT<b>●</b>STORM<b>●</b>AURORA<b>●</b>CAPTURE THE MOMENT<b>●</b>TEZOS NFT<b>●</b>FOMO<b>●</b></span>
+          <span>LIVE WEATHER<b>●</b>AI HUNT<b>●</b>STORM<b>●</b>AURORA<b>●</b>CAPTURE THE MOMENT<b>●</b>TEZOS NFT<b>●</b>FOMO<b>●</b></span>
+        </div>
+      </div>
+      <div id="flash"></div>
     </div>
 
     <script>
       window.__timelines = window.__timelines || {};
       const tl = gsap.timeline({ paused: true });
+      const BEAT = 0.5; // 120 BPM
+      const DUR = 31;
 
-      // ---- counter helper (seekable, deterministic) ----
-      function counter(sel, end, at, dur, ease, fmt) {
-        const el = typeof sel === "string" ? document.querySelector(sel) : sel;
-        const o = { v: 0 };
-        tl.to(
-          o,
-          {
-            v: end,
-            duration: dur,
-            ease: ease,
-            onUpdate() {
-              el.textContent = fmt ? fmt(o.v) : Math.round(o.v);
-            },
-          },
-          at,
-        );
+      // counter (seekable)
+      function counter(el, end, at, dur, ease, fmt) {
+        el = typeof el === "string" ? document.querySelector(el) : el;
+        const o = { v: parseFloat(el.textContent) || 0 };
+        tl.to(o, { v: end, duration: dur, ease: ease, onUpdate() { el.textContent = fmt ? fmt(o.v) : Math.round(o.v); } }, at);
+      }
+      // hard glitch cut: jitter out, strobe, swap, blur-in
+      function cut(oldS, newS, T, tint) {
+        tl.to(oldS, { x: -22, skewX: -3, duration: 0.03, ease: "none" }, T);
+        tl.to(oldS, { x: 18, skewX: 4, duration: 0.03, ease: "none" }, T + 0.03);
+        tl.to(oldS, { x: -10, skewX: 0, duration: 0.03, ease: "none" }, T + 0.06);
+        tl.set("#flash", { backgroundColor: tint || "#ffffff", opacity: 0.9 }, T + 0.04);
+        tl.to("#flash", { opacity: 0, duration: 0.18, ease: "power2.out" }, T + 0.09);
+        tl.set(oldS, { opacity: 0, x: 0, skewX: 0 }, T + 0.11);
+        tl.fromTo(newS, { opacity: 0, scale: 1.08, filter: "blur(7px)" },
+          { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.22, ease: "power3.out" }, T + 0.08);
+      }
+      // beat pump scale on an element across [from,to]
+      function pump(sel, from, to, amp, dur) {
+        const cycles = Math.max(1, Math.round((to - from) / BEAT));
+        tl.to(sel, { scale: 1 + amp, duration: BEAT / 2, yoyo: true, repeat: cycles * 2 - 1, ease: "sine.inOut" }, from);
       }
 
-      /* ================= SCENE 1  (0 → 5.3) ================= */
-      tl.fromTo("#s1 .eyebrow", { opacity: 0, y: -24 }, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }, 0.2);
-      tl.fromTo("#s1 .hero", { opacity: 0, y: 70, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.9, ease: "expo.out" }, 0.4);
-      tl.fromTo("#s1 .hero .dot", { color: "#eef2fb" }, { color: "#ffd23f", duration: 0.5, ease: "power1.in" }, 1.1);
-      tl.fromTo("#s1 .sub", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.7, ease: "power3.out" }, 0.9);
-      tl.fromTo("#s1 .rule", { scaleX: 0 }, { scaleX: 1, duration: 0.8, ease: "power2.inOut" }, 1.2);
-      // bolt strike
-      tl.fromTo("#s1 .bolt", { opacity: 0, y: -60, scale: 0.7, rotation: -8 }, { opacity: 1, y: 0, scale: 1, rotation: 0, duration: 0.5, ease: "back.out(2)" }, 0.7);
-      tl.to("#s1 .bolt", { opacity: 0.55, duration: 0.12, yoyo: true, repeat: 5, ease: "rough({strength:2,points:8,clamp:false})" }, 1.3);
-      // particles in
-      tl.fromTo("#s1 .particle", { opacity: 0, scale: 0 }, { opacity: 1, scale: 1, duration: 0.5, stagger: 0.12, ease: "back.out(1.7)" }, 1.0);
-      tl.fromTo("#s1 .reg-mark", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: "power1.out" }, 1.4);
-      // ambient
-      tl.to("#s1 .g1", { scale: 1.14, duration: 2.4, yoyo: true, repeat: 2, ease: "sine.inOut" }, 0.5);
-      tl.to("#s1 .g2", { scale: 1.1, duration: 2.8, yoyo: true, repeat: 2, ease: "sine.inOut" }, 0.8);
-      tl.to("#s1 .ghost", { xPercent: -3, duration: 5, yoyo: true, repeat: 1, ease: "sine.inOut" }, 0.2);
-      tl.to("#s1 .particle", { y: -26, duration: 2.0, yoyo: true, repeat: 2, ease: "sine.inOut", stagger: 0.3 }, 1.6);
+      /* ===== GLOBAL (whole timeline) ===== */
+      // ticker scroll (seamless, finite)
+      tl.fromTo("#ticker .tick", { x: 0 }, { x: "-50%", duration: 8, ease: "none", repeat: Math.ceil(DUR / 8) }, 0);
+      // beat glow pump for entire piece
+      pump("#beatglow", 0, DUR, 0.12, BEAT);
+      tl.to("#beatglow", { opacity: 0.7, duration: BEAT, yoyo: true, repeat: Math.ceil(DUR / BEAT), ease: "sine.inOut" }, 0);
+      // scanline drift
+      tl.fromTo("#scanlines", { y: 0 }, { y: 8, duration: 0.5, ease: "none", repeat: Math.ceil(DUR / 0.5) }, 0);
+      // REC blink
+      tl.to("#status .rec b", { opacity: 0.15, duration: BEAT / 2, yoyo: true, repeat: Math.ceil(DUR / BEAT) * 2, ease: "steps(1)" }, 0);
+      // status flicker in
+      tl.fromTo("#status", { opacity: 0 }, { opacity: 1, duration: 0.3 }, 0.2);
+      tl.fromTo("#ticker", { y: 64 }, { y: 0, duration: 0.4, ease: "power3.out" }, 0.3);
 
-      /* ===== TRANSITION 1 → 2 : blur crossfade @5.3 ===== */
-      tl.to("#s1", { filter: "blur(10px)", scale: 1.03, opacity: 0, duration: 0.5, ease: "power2.inOut" }, 5.3);
-      tl.fromTo("#s2", { filter: "blur(10px)", scale: 0.97, opacity: 0 }, { filter: "blur(0px)", scale: 1, opacity: 1, duration: 0.55, ease: "power2.inOut" }, 5.4);
+      /* ===== SCENE 1 (0 → 4.8) ===== */
+      tl.fromTo("#s1 .kick", { opacity: 0, letterSpacing: "1.2em" }, { opacity: 1, letterSpacing: "0.5em", duration: 0.4, ease: "power3.out" }, 0.2);
+      tl.fromTo("#s1 .hero", { opacity: 0, scale: 2.2, filter: "blur(12px)" }, { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.32, ease: "power4.out" }, 0.5);
+      tl.fromTo("#s1 .hero", { skewX: 8 }, { skewX: 0, duration: 0.2, ease: "back.out(3)" }, 0.5);
+      tl.fromTo("#s1 .hero .dot", { color: "#f6f4ff" }, { color: "#ffd23f", duration: 0.2 }, 0.85);
+      tl.fromTo("#s1 .sub", { opacity: 0, x: -40 }, { opacity: 1, x: 0, duration: 0.35, ease: "power3.out" }, 1.0);
+      // eq bars react
+      tl.fromTo("#s1 .eq span", { scaleY: 0 }, { scaleY: 1, duration: 0.3, stagger: 0.04, ease: "power2.out" }, 0.6);
+      tl.to("#s1 .eqL span", { scaleY: 0.3, duration: BEAT / 2, yoyo: true, repeat: 15, ease: "sine.inOut", stagger: 0.05 }, 1.0);
+      tl.to("#s1 .eqR span", { scaleY: 0.4, duration: BEAT / 2, yoyo: true, repeat: 15, ease: "sine.inOut", stagger: 0.06 }, 1.1);
+      pump("#s1 .hero", 1.1, 4.7, 0.03, BEAT);
+      cut("#s1", "#s2", 4.8, "#48bfe3");
 
-      /* ================= SCENE 2  (5.4 → 10.8) ================= */
-      tl.fromTo("#s2 .left .kicker", { opacity: 0, x: -30 }, { opacity: 0.62, x: 0, duration: 0.5, ease: "power2.out" }, 5.7);
-      tl.fromTo("#s2 .old-title", { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.6, ease: "power2.out" }, 5.85);
-      tl.fromTo("#s2 .old-desc", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: "power1.out" }, 6.1);
-      tl.fromTo("#s2 .strike", { scaleX: 0 }, { scaleX: 1, duration: 0.45, ease: "power3.inOut" }, 6.5);
-      tl.fromTo("#s2 .divider", { scaleY: 0 }, { scaleY: 1, duration: 0.7, ease: "power2.inOut" }, 6.4);
-      tl.fromTo("#s2 .right .kicker", { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 0.5, ease: "power2.out" }, 6.7);
-      tl.fromTo("#s2 .step", { opacity: 0, x: 50 }, { opacity: 1, x: 0, duration: 0.55, stagger: 0.28, ease: "power3.out" }, 7.0);
-      tl.fromTo("#s2 .reg-mark", { opacity: 0 }, { opacity: 1, duration: 0.5 }, 7.0);
-      // ambient
-      tl.to("#s2 .g1", { scale: 1.12, duration: 2.6, yoyo: true, repeat: 1, ease: "sine.inOut" }, 6.0);
-      tl.to("#s2 .step .num", { opacity: 0.5, duration: 0.9, yoyo: true, repeat: 3, ease: "sine.inOut", stagger: 0.2 }, 8.4);
+      /* ===== SCENE 2 (4.8 → 9.1) ===== */
+      tl.fromTo("#s2 .forget", { opacity: 0, x: -60 }, { opacity: 1, x: 0, duration: 0.3, ease: "power3.out" }, 5.2);
+      tl.fromTo("#s2 .forget .x", { scaleX: 0 }, { scaleX: 1, duration: 0.25, ease: "power4.in" }, 5.55);
+      tl.fromTo("#s2 .golive", { opacity: 0, scale: 2.4, filter: "blur(10px)" }, { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.3, ease: "power4.out" }, 5.9);
+      // STREAM / DETECT / CAPTURE slam on the beat
+      tl.fromTo("#s2 .flow .w1", { opacity: 0, scale: 2, y: 20 }, { opacity: 1, scale: 1, y: 0, duration: 0.22, ease: "back.out(2)" }, 6.5);
+      tl.fromTo("#s2 .flow .w2", { opacity: 0, scale: 2, y: 20 }, { opacity: 1, scale: 1, y: 0, duration: 0.22, ease: "back.out(2)" }, 7.0);
+      tl.fromTo("#s2 .flow .w3", { opacity: 0, scale: 2, y: 20 }, { opacity: 1, scale: 1, y: 0, duration: 0.22, ease: "back.out(2)" }, 7.5);
+      tl.fromTo("#s2 .flow .sep", { opacity: 0 }, { opacity: 0.6, duration: 0.2, stagger: 0.5 }, 6.75);
+      pump("#s2 .golive", 6.3, 9.0, 0.035, BEAT);
+      cut("#s2", "#s3", 9.1, "#f72585");
 
-      /* ===== TRANSITION 2 → 3 : push slide @10.8 ===== */
-      tl.to("#s2", { x: -1920, duration: 0.55, ease: "power3.inOut" }, 10.8);
-      tl.fromTo("#s3", { x: 1920, opacity: 1 }, { x: 0, duration: 0.55, ease: "power3.inOut" }, 10.8);
+      /* ===== SCENE 3 (9.1 → 14.4) ===== */
+      tl.fromTo("#s3 .htag", { opacity: 0 }, { opacity: 1, duration: 0.25 }, 9.5);
+      tl.fromTo("#s3 .htitle", { opacity: 0, x: -50, skewX: 6 }, { opacity: 1, x: 0, skewX: 0, duration: 0.3, ease: "power3.out" }, 9.6);
+      tl.fromTo("#s3 .htitle b", { scale: 0, color: "#f6f4ff" }, { scale: 1, color: "#ffd23f", duration: 0.3, ease: "back.out(3)" }, 9.8);
+      // rapid-fire algorithm slams on half-beats
+      tl.fromTo("#s3 .algo", { opacity: 0, x: -80, scale: 1.4 }, { opacity: 1, x: 0, scale: 1, duration: 0.22, stagger: 0.26, ease: "power4.out" }, 10.2);
+      // eq react
+      tl.fromTo("#s3 .eqB span", { scaleY: 0 }, { scaleY: 1, duration: 0.3, stagger: 0.04 }, 10.0);
+      tl.to("#s3 .eqB span", { scaleY: 0.3, duration: BEAT / 2, yoyo: true, repeat: 14, ease: "sine.inOut", stagger: 0.05 }, 11.6);
+      cut("#s3", "#s4", 14.4, "#e9ff70");
 
-      /* ================= SCENE 3  (10.8 → 16.6) ================= */
-      tl.fromTo("#s3 .head h2", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.7, ease: "expo.out" }, 11.2);
-      tl.fromTo("#s3 .head h2 em", { scale: 0.4, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: "back.out(2.2)" }, 11.4);
-      tl.fromTo("#s3 .scan", { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 0.5, ease: "power2.out" }, 11.5);
-      tl.fromTo("#s3 .row", { opacity: 0, x: -60 }, { opacity: 1, x: 0, duration: 0.5, stagger: 0.16, ease: "power3.out" }, 11.8);
-      tl.fromTo("#s3 .row .dot", { scale: 0 }, { scale: 1, duration: 0.4, stagger: 0.16, ease: "back.out(3)" }, 12.0);
-      tl.fromTo("#s3 .reg-mark", { opacity: 0 }, { opacity: 1, duration: 0.5 }, 12.4);
-      // ambient: scanning pulse on dots + glow drift
-      tl.to("#s3 .row .dot", { opacity: 0.35, duration: 0.7, yoyo: true, repeat: 4, ease: "sine.inOut", stagger: 0.12 }, 13.0);
-      tl.to("#s3 .g1", { xPercent: -8, duration: 3.0, yoyo: true, repeat: 1, ease: "sine.inOut" }, 12.0);
+      /* ===== SCENE 4 (14.4 → 19.2) ===== */
+      tl.fromTo("#s4 .live", { opacity: 0, scale: 0.5 }, { opacity: 1, scale: 1, duration: 0.25, ease: "back.out(3)" }, 14.8);
+      tl.fromTo("#s4 .big", { opacity: 0, scale: 1.8, filter: "blur(10px)" }, { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.3, ease: "power4.out" }, 15.0);
+      tl.fromTo("#s4 .stat", { opacity: 0, y: 60 }, { opacity: 1, y: 0, duration: 0.3, stagger: 0.18, ease: "power3.out" }, 15.4);
+      counter("#win", 15, 15.5, 0.8, "power2.in", (v) => Math.round(v));
+      tl.fromTo("#s4 .stat .sl i.on", { scale: 0 }, { scale: 1, duration: 0.18, stagger: 0.06, ease: "back.out(2)" }, 15.8);
+      // FOMO / live strobe pulse
+      tl.to("#s4 .live", { opacity: 0.4, duration: BEAT / 2, yoyo: true, repeat: 8, ease: "steps(1)" }, 16.0);
+      pump("#s4 .big", 15.4, 19.1, 0.04, BEAT);
+      cut("#s4", "#s5", 19.2, "#9d4edd");
 
-      /* ===== TRANSITION 3 → 4 : zoom through @16.6 ===== */
-      tl.to("#s3", { scale: 2.4, opacity: 0, filter: "blur(8px)", duration: 0.42, ease: "power3.in" }, 16.6);
-      tl.fromTo("#s4", { scale: 0.55, opacity: 0, filter: "blur(8px)" }, { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.46, ease: "power3.out" }, 16.75);
-
-      /* ================= SCENE 4  (16.75 → 22.1) ================= */
-      tl.fromTo("#s4 .live-badge", { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 0.45, ease: "back.out(2)" }, 17.1);
-      tl.fromTo("#s4 h2", { opacity: 0, y: 50 }, { opacity: 1, y: 0, duration: 0.55, ease: "power3.out" }, 17.25);
-      tl.fromTo("#s4 h2 em", { color: "#eef2fb" }, { color: "#ffd23f", duration: 0.4 }, 17.7);
-      tl.fromTo("#s4 .metric", { opacity: 0, y: 70 }, { opacity: 1, y: 0, duration: 0.55, stagger: 0.18, ease: "power3.out" }, 17.6);
-      tl.fromTo("#s4 .reg-mark", { opacity: 0 }, { opacity: 1, duration: 0.5 }, 17.6);
-      // ring depletion + counters
-      tl.fromTo("#ringFg", { strokeDasharray: 170, strokeDashoffset: 170 }, { strokeDashoffset: 50, duration: 1.1, ease: "power1.inOut" }, 18.1);
-      counter("#win", 15, 18.1, 0.9, "power2.out", (v) => Math.round(v));
-      // slots fill on
-      tl.fromTo("#s4 .slots i.on", { scale: 0 }, { scale: 1, duration: 0.3, stagger: 0.05, ease: "back.out(2)" }, 18.2);
-      // equalizer bars
-      tl.fromTo("#s4 .wave span", { scaleY: 0 }, { scaleY: 1, duration: 0.4, stagger: 0.05, ease: "power2.out" }, 18.2);
-      // ambient
-      tl.to("#s4 .live-badge .pulse", { opacity: 0.25, scale: 1.4, duration: 0.6, yoyo: true, repeat: 5, ease: "sine.inOut" }, 18.0);
-      tl.to("#s4 .wave span", { scaleY: 0.4, duration: 0.45, yoyo: true, repeat: 6, ease: "sine.inOut", stagger: 0.06 }, 19.0);
-      tl.to("#s4 .g1", { scale: 1.16, opacity: 0.8, duration: 2.2, yoyo: true, repeat: 1, ease: "sine.inOut" }, 18.0);
-
-      /* ===== TRANSITION 4 → 5 : blur crossfade @22.1 ===== */
-      tl.to("#s4", { filter: "blur(10px)", scale: 1.03, opacity: 0, duration: 0.5, ease: "power2.inOut" }, 22.1);
-      tl.fromTo("#s5", { filter: "blur(10px)", scale: 0.97, opacity: 0 }, { filter: "blur(0px)", scale: 1, opacity: 1, duration: 0.55, ease: "power2.inOut" }, 22.2);
-
-      /* ================= SCENE 5  (22.2 → 28.0) ================= */
-      tl.fromTo("#s5 .head h2", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.6, ease: "expo.out" }, 22.5);
-      tl.fromTo("#s5 .head .note", { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 0.5, ease: "power2.out" }, 22.8);
-      tl.fromTo("#s5 .bar", { opacity: 0, x: -40 }, { opacity: 1, x: 0, duration: 0.45, stagger: 0.14, ease: "power2.out" }, 22.9);
-      tl.fromTo("#s5 .reg-mark", { opacity: 0 }, { opacity: 1, duration: 0.5 }, 22.9);
-      // set fill widths + colors, then grow each
+      /* ===== SCENE 5 (19.2 → 24.2) ===== */
+      tl.fromTo("#s5 .htitle", { opacity: 0, x: -50 }, { opacity: 1, x: 0, duration: 0.3, ease: "power3.out" }, 19.6);
+      tl.fromTo("#s5 .htitle b", { color: "#f6f4ff" }, { color: "#ffd23f", duration: 0.3 }, 19.9);
+      tl.fromTo("#s5 .hsub", { opacity: 0 }, { opacity: 1, duration: 0.25 }, 19.9);
+      tl.fromTo("#s5 .bar", { opacity: 0, x: -60 }, { opacity: 1, x: 0, duration: 0.25, stagger: 0.12, ease: "power3.out" }, 20.1);
       document.querySelectorAll("#s5 .bar").forEach((bar, i) => {
         const fill = bar.querySelector(".fill");
         const c = bar.dataset.c;
         fill.style.width = bar.dataset.w + "%";
-        fill.style.background = "linear-gradient(90deg, " + c + "66, " + c + ")";
-        fill.style.boxShadow = "0 0 18px " + c + "55";
-        const at = 23.2 + i * 0.16;
-        tl.fromTo(fill, { scaleX: 0 }, { scaleX: 1, duration: 0.7, ease: "power3.out" }, at);
-        const mult = +bar.dataset.mult;
-        counter(bar.querySelector(".mult"), mult, at, 0.7, "power2.out", (v) => Math.round(v) + "×");
+        fill.style.background = "linear-gradient(90deg, " + c + "55, " + c + ")";
+        fill.style.boxShadow = "0 0 22px " + c + "aa";
+        const at = 20.3 + i * 0.12;
+        tl.fromTo(fill, { scaleX: 0 }, { scaleX: 1, duration: 0.4, ease: "power4.out" }, at);
+        counter(bar.querySelector(".m"), +bar.dataset.mult, at, 0.4, "power2.out", (v) => Math.round(v) + "×");
       });
-      // ambient: legendary bar shimmer
-      tl.to("#s5 .bar:last-child .fill", { filter: "brightness(1.3)", duration: 0.8, yoyo: true, repeat: 3, ease: "sine.inOut" }, 25.2);
-      tl.to("#s5 .g1", { scale: 1.12, duration: 2.6, yoyo: true, repeat: 1, ease: "sine.inOut" }, 23.5);
+      // legendary strobe
+      tl.to("#s5 .bar:last-child .fill", { filter: "brightness(1.5)", duration: BEAT / 2, yoyo: true, repeat: 7, ease: "steps(1)" }, 21.4);
+      cut("#s5", "#s6", 24.2, "#ffffff");
 
-      /* ===== TRANSITION 5 → 6 : slow crossfade @28.0 ===== */
-      tl.to("#s5", { opacity: 0, duration: 0.6, ease: "power2.inOut" }, 28.0);
-      tl.fromTo("#s6", { opacity: 0 }, { opacity: 1, duration: 0.7, ease: "power2.inOut" }, 28.0);
-
-      /* ================= SCENE 6  (28.0 → 35.0) ================= */
-      tl.fromTo("#s6 .mark", { opacity: 0, y: -50, scale: 0.6, rotation: -10 }, { opacity: 1, y: 0, scale: 1, rotation: 0, duration: 0.6, ease: "back.out(2)" }, 28.5);
-      tl.fromTo("#s6 .word", { opacity: 0, scale: 0.9, letterSpacing: "0.12em" }, { opacity: 1, scale: 1, letterSpacing: "-0.005em", duration: 0.9, ease: "expo.out" }, 28.7);
-      tl.fromTo("#s6 .word .dot", { color: "#eef2fb" }, { color: "#ffd23f", duration: 0.5 }, 29.4);
-      tl.fromTo("#s6 .tag", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 29.2);
-      tl.fromTo("#s6 .stack", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: "power1.out" }, 29.6);
-      tl.fromTo("#s6 .url", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 29.9);
-      // ambient hold (breathing brand)
-      tl.to("#s6 .mark", { y: -14, duration: 1.6, yoyo: true, repeat: 2, ease: "sine.inOut" }, 30.6);
-      tl.to("#s6 .g1", { scale: 1.1, duration: 2.4, yoyo: true, repeat: 1, ease: "sine.inOut" }, 30.0);
-      tl.to("#s6 .g2", { scale: 1.16, opacity: 0.85, duration: 2.8, yoyo: true, repeat: 1, ease: "sine.inOut" }, 30.2);
-      tl.to("#s6 .url b", { opacity: 0.4, duration: 0.7, yoyo: true, repeat: 4, ease: "sine.inOut" }, 31.0);
+      /* ===== SCENE 6 (24.2 → 31) ===== */
+      tl.fromTo("#s6 .word", { opacity: 0, scale: 2.2, filter: "blur(12px)" }, { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.32, ease: "power4.out" }, 24.6);
+      tl.fromTo("#s6 .word", { skewX: 7 }, { skewX: 0, duration: 0.2, ease: "back.out(3)" }, 24.6);
+      tl.fromTo("#s6 .word .dot", { color: "#f6f4ff" }, { color: "#ffd23f", duration: 0.2 }, 24.95);
+      tl.fromTo("#s6 .tag", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.3, ease: "power3.out" }, 25.0);
+      tl.fromTo("#s6 .stack", { opacity: 0 }, { opacity: 1, duration: 0.3 }, 25.4);
+      tl.fromTo("#s6 .url", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.25, ease: "power2.out" }, 25.7);
+      pump("#s6 .word", 25.2, 30.5, 0.045, BEAT);
+      tl.to("#s6 .url b", { opacity: 0.3, duration: BEAT / 2, yoyo: true, repeat: 10, ease: "steps(1)" }, 26.0);
+      // final strobe burst
+      tl.to("#s6 .tag", { color: "#48bfe3", duration: BEAT, yoyo: true, repeat: 4, ease: "none" }, 26.0);
 
       window.__timelines["main"] = tl;
     </script>
