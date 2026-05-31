@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=1920, height=1080" />
     <script src="vendor/gsap.min.js"></script>
+    <script src="audio-data.js"></script>
     <style>
       * {
         margin: 0;
@@ -109,7 +110,8 @@
         top: 50%;
         width: 1500px;
         height: 1500px;
-        transform: translate(-50%, -50%);
+        margin-left: -750px;
+        margin-top: -750px;
         border-radius: 50%;
         background: radial-gradient(circle, rgba(247, 37, 133, 0.16), transparent 60%);
         z-index: 40;
@@ -454,6 +456,9 @@
         </div>
       </div>
       <div id="flash"></div>
+
+      <!-- 120 BPM beat (separate audio track) -->
+      <audio id="track" src="beat.m4a" data-start="0" data-duration="31" data-track-index="9" data-volume="1"></audio>
     </div>
 
     <script>
@@ -488,9 +493,7 @@
       /* ===== GLOBAL (whole timeline) ===== */
       // ticker scroll (seamless, finite)
       tl.fromTo("#ticker .tick", { x: 0 }, { x: "-50%", duration: 8, ease: "none", repeat: Math.ceil(DUR / 8) }, 0);
-      // beat glow pump for entire piece
-      pump("#beatglow", 0, DUR, 0.12, BEAT);
-      tl.to("#beatglow", { opacity: 0.7, duration: BEAT, yoyo: true, repeat: Math.ceil(DUR / BEAT), ease: "sine.inOut" }, 0);
+      // beat glow is driven by the audio sampler below (bass)
       // scanline drift
       tl.fromTo("#scanlines", { y: 0 }, { y: 8, duration: 0.5, ease: "none", repeat: Math.ceil(DUR / 0.5) }, 0);
       // REC blink
@@ -505,10 +508,8 @@
       tl.fromTo("#s1 .hero", { skewX: 8 }, { skewX: 0, duration: 0.2, ease: "back.out(3)" }, 0.5);
       tl.fromTo("#s1 .hero .dot", { color: "#f6f4ff" }, { color: "#ffd23f", duration: 0.2 }, 0.85);
       tl.fromTo("#s1 .sub", { opacity: 0, x: -40 }, { opacity: 1, x: 0, duration: 0.35, ease: "power3.out" }, 1.0);
-      // eq bars react
-      tl.fromTo("#s1 .eq span", { scaleY: 0 }, { scaleY: 1, duration: 0.3, stagger: 0.04, ease: "power2.out" }, 0.6);
-      tl.to("#s1 .eqL span", { scaleY: 0.3, duration: BEAT / 2, yoyo: true, repeat: 15, ease: "sine.inOut", stagger: 0.05 }, 1.0);
-      tl.to("#s1 .eqR span", { scaleY: 0.4, duration: BEAT / 2, yoyo: true, repeat: 15, ease: "sine.inOut", stagger: 0.06 }, 1.1);
+      // eq bars fade in; their height is audio-driven (sampler below)
+      tl.fromTo("#s1 .eq span", { opacity: 0 }, { opacity: 1, duration: 0.3, stagger: 0.04, ease: "power2.out" }, 0.6);
       pump("#s1 .hero", 1.1, 4.7, 0.03, BEAT);
       cut("#s1", "#s2", 4.8, "#48bfe3");
 
@@ -530,9 +531,8 @@
       tl.fromTo("#s3 .htitle b", { scale: 0, color: "#f6f4ff" }, { scale: 1, color: "#ffd23f", duration: 0.3, ease: "back.out(3)" }, 9.8);
       // rapid-fire algorithm slams on half-beats
       tl.fromTo("#s3 .algo", { opacity: 0, x: -80, scale: 1.4 }, { opacity: 1, x: 0, scale: 1, duration: 0.22, stagger: 0.26, ease: "power4.out" }, 10.2);
-      // eq react
-      tl.fromTo("#s3 .eqB span", { scaleY: 0 }, { scaleY: 1, duration: 0.3, stagger: 0.04 }, 10.0);
-      tl.to("#s3 .eqB span", { scaleY: 0.3, duration: BEAT / 2, yoyo: true, repeat: 14, ease: "sine.inOut", stagger: 0.05 }, 11.6);
+      // eq react (height audio-driven via sampler)
+      tl.fromTo("#s3 .eqB span", { opacity: 0 }, { opacity: 1, duration: 0.3, stagger: 0.04 }, 10.0);
       cut("#s3", "#s4", 14.4, "#e9ff70");
 
       /* ===== SCENE 4 (14.4 → 19.2) ===== */
@@ -576,6 +576,34 @@
       tl.to("#s6 .url b", { opacity: 0.3, duration: BEAT / 2, yoyo: true, repeat: 10, ease: "steps(1)" }, 26.0);
       // final strobe burst
       tl.to("#s6 .tag", { color: "#48bfe3", duration: BEAT, yoyo: true, repeat: 4, ease: "none" }, 26.0);
+
+      /* ===== AUDIO-REACTIVE SAMPLER ===== */
+      // Drives the beat-glow (bass) and every equalizer bar (spread of bands)
+      // from the real 120 BPM track, sampled once per frame (seekable).
+      (function () {
+        var A = window.AUDIO_DATA;
+        if (!A) return;
+        var glow = document.getElementById("beatglow");
+        var bars = Array.prototype.slice.call(document.querySelectorAll(".eq span"));
+        var nb = A.bands[0].length;
+        gsap.set(bars, { transformOrigin: "bottom" });
+        for (var f = 0; f < A.totalFrames; f++) {
+          tl.call(
+            (function (b) {
+              return function () {
+                var bass = (b[0] + b[1] + b[2]) / 3;
+                gsap.set(glow, { scale: 1 + bass * 0.6, opacity: 0.28 + bass * 0.62 });
+                for (var i = 0; i < bars.length; i++) {
+                  var band = b[(i * 3) % nb];
+                  gsap.set(bars[i], { scaleY: 0.12 + band * 1.05 });
+                }
+              };
+            })(A.bands[f]),
+            null,
+            f / A.fps,
+          );
+        }
+      })();
 
       window.__timelines["main"] = tl;
     </script>
