@@ -9,9 +9,13 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
+const { DetectionEngine } = require('./algorithms');
 
 const app = express();
 const PORT = process.env.WEATHER_API_PORT || 3012;
+
+// Modern climatology-aware detection ensemble (opt-in via ?engine=v2).
+const detectionEngine = new DetectionEngine();
 
 app.use(cors());
 app.use(express.json());
@@ -72,6 +76,19 @@ app.get('/health', (req, res) => {
 });
 
 /**
+ * List the detection algorithms in the modern ensemble
+ * GET /api/algorithms
+ */
+app.get('/api/algorithms', (req, res) => {
+  res.json({
+    success: true,
+    engine: 'ensemble-v2',
+    algorithms: detectionEngine.describe(),
+    timestamp: Date.now()
+  });
+});
+
+/**
  * Get current weather for a location
  * GET /api/weather/current
  */
@@ -124,11 +141,16 @@ app.get('/api/weather/detect-events', async (req, res) => {
     // Get current weather
     const weatherData = await getCurrentWeather({ lat, lon, city });
 
-    // Analyze for events
-    const events = analyzeWeatherForEvents(weatherData);
+    // Analyze for events. ?engine=v2 uses the modern climatology-aware
+    // ensemble (confidence + z-scores); default keeps the legacy thresholds.
+    const useV2 = String(req.query.engine || '').toLowerCase() === 'v2';
+    const events = useV2
+      ? detectionEngine.analyze(weatherData, { location: weatherData.location, timestamp: weatherData.timestamp })
+      : analyzeWeatherForEvents(weatherData);
 
     res.json({
       success: true,
+      engine: useV2 ? 'ensemble-v2' : 'thresholds-v1',
       location: weatherData.location,
       weather: weatherData,
       events: events,

@@ -5,6 +5,9 @@
 
 // Set test environment variables
 process.env.NODE_ENV = 'test';
+// Deterministic test-only secret so auth/JWT tests can sign & verify tokens
+// without depending on a developer's local .env.
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-deterministic-0123456789abcdef';
 process.env.MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/weathernft_test';
 process.env.PORT = process.env.PORT || '3000';
 process.env.NFT_SERVICE_PORT = process.env.NFT_SERVICE_PORT || '3009';
