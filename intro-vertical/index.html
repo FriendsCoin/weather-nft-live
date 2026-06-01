@@ -1,0 +1,669 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="vendor/gsap.min.js"></script>
+    <script src="audio-data.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      :root {
+        --bg: #08060f;
+        --ink: #f6f4ff;
+        --magenta: #f72585;
+        --pink: #ff70a6;
+        --cyan: #48bfe3;
+        --aqua: #6fffe9;
+        --lime: #e9ff70;
+        --yellow: #ffd23f;
+        --violet: #9d4edd;
+      }
+      html,
+      body {
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+        background: #000;
+        font-family: "Bebas Neue", sans-serif;
+        color: var(--ink);
+      }
+
+      /* ---------------- scenes ---------------- */
+      .scene {
+        position: absolute;
+        inset: 0;
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+        background: var(--bg);
+      }
+      #s1 {
+        z-index: 1;
+      }
+      #s2,
+      #s3,
+      #s4,
+      #s5,
+      #s6 {
+        opacity: 0;
+      }
+      #s2 { z-index: 2; }
+      #s3 { z-index: 3; }
+      #s4 { z-index: 4; }
+      #s5 { z-index: 5; }
+      #s6 { z-index: 6; }
+
+      .wrap {
+        position: relative;
+        z-index: 5;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 0 140px 90px;
+        box-sizing: border-box;
+      }
+
+      /* ---------------- shared FX ---------------- */
+      .glow {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(80px);
+        z-index: 0;
+        pointer-events: none;
+      }
+      .eq {
+        position: absolute;
+        display: flex;
+        align-items: flex-end;
+        gap: 10px;
+        z-index: 1;
+        pointer-events: none;
+      }
+      .eq span {
+        width: 18px;
+        border-radius: 3px 3px 0 0;
+        transform-origin: bottom;
+      }
+      .mono {
+        font-family: "IBM Plex Mono", monospace;
+      }
+      .chroma {
+        text-shadow: 0.04em 0 rgba(247, 37, 133, 0.9), -0.04em 0 rgba(72, 191, 227, 0.9),
+          0 0 0.25em rgba(255, 255, 255, 0.15);
+      }
+      .display {
+        font-family: "Bebas Neue", sans-serif;
+        line-height: 0.86;
+        letter-spacing: 0.01em;
+      }
+
+      /* GLOBAL OVERLAYS (persist across cuts) */
+      #beatglow {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 1500px;
+        height: 1500px;
+        margin-left: -750px;
+        margin-top: -750px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(247, 37, 133, 0.16), transparent 60%);
+        z-index: 40;
+        pointer-events: none;
+        mix-blend-mode: screen;
+      }
+      #scanlines {
+        position: absolute;
+        left: 0;
+        top: -60%;
+        width: 100%;
+        height: 220%;
+        z-index: 60;
+        pointer-events: none;
+        background-image: repeating-linear-gradient(
+          to bottom,
+          rgba(255, 255, 255, 0.06) 0px,
+          rgba(255, 255, 255, 0.06) 1px,
+          transparent 1px,
+          transparent 4px
+        );
+        opacity: 0.55;
+        mix-blend-mode: overlay;
+      }
+      #vignette {
+        position: absolute;
+        inset: 0;
+        z-index: 58;
+        pointer-events: none;
+        background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.65) 100%);
+      }
+      #flash {
+        position: absolute;
+        inset: 0;
+        z-index: 80;
+        background: #fff;
+        opacity: 0;
+        pointer-events: none;
+        mix-blend-mode: screen;
+      }
+      /* top status bar */
+      #status {
+        position: absolute;
+        top: 34px;
+        left: 0;
+        width: 100%;
+        padding: 0 48px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 65;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 22px;
+        letter-spacing: 0.28em;
+        color: var(--aqua);
+      }
+      #status .rec {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--magenta);
+      }
+      #status .rec b {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--magenta);
+        box-shadow: 0 0 14px var(--magenta);
+      }
+      /* ticker */
+      #ticker {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 64px;
+        display: flex;
+        align-items: center;
+        overflow: hidden;
+        z-index: 62;
+        background: rgba(247, 37, 133, 0.12);
+        border-top: 3px solid var(--magenta);
+      }
+      #ticker .tick {
+        display: flex;
+        white-space: nowrap;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 26px;
+        font-weight: 500;
+        letter-spacing: 0.22em;
+        color: var(--lime);
+      }
+      #ticker .tick b {
+        color: var(--cyan);
+        margin: 0 22px;
+      }
+
+      /* ============ SCENE 1 — HOOK ============ */
+      #s1 .g1 { width: 1200px; height: 1200px; left: -160px; top: -200px;
+        background: radial-gradient(circle, rgba(247, 37, 133, 0.6), transparent 62%); }
+      #s1 .g2 { width: 1100px; height: 1100px; right: -200px; bottom: -260px;
+        background: radial-gradient(circle, rgba(72, 191, 227, 0.55), transparent 62%); }
+      #s1 .eqL { left: 90px; bottom: 120px; height: 360px; }
+      #s1 .eqR { right: 90px; top: 120px; height: 320px; transform: scaleY(-1); }
+      #s1 .kick {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 30px;
+        letter-spacing: 0.5em;
+        color: var(--lime);
+        margin-bottom: 24px;
+      }
+      #s1 .hero { font-size: 172px; }
+      #s1 .hero .dot { color: var(--yellow); }
+      #s1 .sub {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 32px;
+        letter-spacing: 0.06em;
+        color: var(--cyan);
+        margin-top: 30px;
+        font-weight: 500;
+      }
+
+      /* ============ SCENE 2 — SHIFT ============ */
+      #s2 { background: radial-gradient(circle at 70% 30%, #1a0826, var(--bg)); }
+      #s2 .g1 { width: 1100px; height: 1100px; left: 50%; top: 50%; transform: translate(-50%, -50%);
+        background: radial-gradient(circle, rgba(157, 78, 221, 0.4), transparent 64%); }
+      #s2 .wrap { align-items: flex-start; }
+      #s2 .forget {
+        font-size: 120px;
+        color: #5a4b6e;
+        position: relative;
+        display: inline-block;
+      }
+      #s2 .forget .x {
+        position: absolute; left: -10px; top: 50%; height: 10px; width: calc(100% + 20px);
+        background: var(--magenta); transform-origin: left center; box-shadow: 0 0 18px var(--magenta);
+      }
+      #s2 .golive { font-size: 200px; color: var(--lime); margin-top: 6px; }
+      #s2 .flow {
+        display: flex; gap: 30px; align-items: center; margin-top: 40px;
+        font-family: "Bebas Neue", sans-serif; font-size: 84px;
+      }
+      #s2 .flow .w1 { color: var(--cyan); }
+      #s2 .flow .w2 { color: var(--pink); }
+      #s2 .flow .w3 { color: var(--yellow); }
+      #s2 .flow .sep { color: var(--ink); font-size: 60px; opacity: 0.6; }
+
+      /* ============ SCENE 3 — ALGORITHMS ============ */
+      #s3 { background: radial-gradient(circle at 30% 70%, #04161c, var(--bg)); }
+      #s3 .g1 { width: 1000px; height: 1000px; right: -160px; top: -200px;
+        background: radial-gradient(circle, rgba(72, 191, 227, 0.5), transparent 62%); }
+      #s3 .eqB { left: 0; bottom: 64px; width: 100%; height: 200px; justify-content: center; opacity: 0.5; }
+      #s3 .htag {
+        font-family: "IBM Plex Mono", monospace; font-size: 28px; letter-spacing: 0.4em;
+        color: var(--magenta); margin-bottom: 8px;
+      }
+      #s3 .htitle { font-size: 150px; margin-bottom: 30px; }
+      #s3 .htitle b { color: var(--yellow); font-weight: 400; }
+      #s3 .algos { display: flex; flex-direction: column; gap: 8px; }
+      #s3 .algo {
+        display: flex; align-items: baseline; gap: 28px;
+        font-family: "Bebas Neue", sans-serif; font-size: 78px; line-height: 1;
+      }
+      #s3 .algo .n { font-family: "IBM Plex Mono", monospace; font-size: 34px; width: 60px; opacity: 0.7; }
+      #s3 .algo:nth-child(1) .t { color: var(--magenta); }
+      #s3 .algo:nth-child(2) .t { color: var(--cyan); }
+      #s3 .algo:nth-child(3) .t { color: var(--lime); }
+      #s3 .algo:nth-child(4) .t { color: var(--pink); }
+      #s3 .algo:nth-child(5) .t { color: var(--yellow); }
+
+      /* ============ SCENE 4 — CAPTURE / FOMO ============ */
+      #s4 { background: radial-gradient(circle at 50% 60%, #260814, var(--bg)); }
+      #s4 .g1 { width: 1200px; height: 1200px; left: 50%; top: 45%; transform: translate(-50%, -50%);
+        background: radial-gradient(circle, rgba(247, 37, 133, 0.45), transparent 60%); }
+      #s4 .wrap { align-items: center; text-align: center; }
+      #s4 .live {
+        font-family: "IBM Plex Mono", monospace; font-size: 34px; letter-spacing: 0.4em;
+        color: var(--ink); background: var(--magenta); padding: 12px 28px; border-radius: 6px;
+        box-shadow: 0 0 30px rgba(247, 37, 133, 0.7); margin-bottom: 30px;
+      }
+      #s4 .big { font-size: 150px; }
+      #s4 .big em { font-style: normal; color: var(--magenta); }
+      #s4 .stats { display: flex; gap: 90px; margin-top: 44px; }
+      #s4 .stat { display: flex; flex-direction: column; align-items: center; }
+      #s4 .stat .v {
+        font-family: "Bebas Neue", sans-serif; font-size: 150px; line-height: 0.9;
+        color: var(--yellow); font-variant-numeric: tabular-nums;
+      }
+      #s4 .stat .v.cy { color: var(--cyan); }
+      #s4 .stat .l {
+        font-family: "IBM Plex Mono", monospace; font-size: 24px; letter-spacing: 0.2em;
+        color: var(--ink); margin-top: 6px; opacity: 0.85;
+      }
+      #s4 .stat .sl { display: flex; gap: 8px; margin-top: 14px; }
+      #s4 .stat .sl i { width: 20px; height: 20px; border-radius: 4px; background: rgba(255,255,255,0.14); }
+      #s4 .stat .sl i.on { background: var(--aqua); box-shadow: 0 0 10px var(--aqua); }
+
+      /* ============ SCENE 5 — RARITY ============ */
+      #s5 { background: radial-gradient(circle at 70% 70%, #150826, var(--bg)); }
+      #s5 .g1 { width: 1100px; height: 1100px; left: -200px; bottom: -260px;
+        background: radial-gradient(circle, rgba(157, 78, 221, 0.5), transparent 62%); }
+      #s5 .htitle { font-size: 130px; margin-bottom: 6px; }
+      #s5 .hsub { font-family: "IBM Plex Mono", monospace; font-size: 26px; letter-spacing: 0.2em;
+        color: var(--lime); margin-bottom: 36px; }
+      #s5 .htitle b, #s5 .hsub b { color: var(--yellow); }
+      #s5 .bars { display: flex; flex-direction: column; gap: 18px; }
+      #s5 .bar { display: grid; grid-template-columns: 360px 1fr 150px; align-items: center; gap: 28px; }
+      #s5 .bar .tier { font-family: "Bebas Neue", sans-serif; font-size: 56px; line-height: 1; }
+      #s5 .track { height: 44px; background: rgba(255, 255, 255, 0.06); border-radius: 6px; overflow: hidden; }
+      #s5 .fill { height: 100%; border-radius: 6px; transform-origin: left center; }
+      #s5 .bar .m {
+        font-family: "Bebas Neue", sans-serif; font-size: 70px; text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* ============ SCENE 6 — CTA ============ */
+      #s6 { background: radial-gradient(circle at 50% 45%, #1a0826, #000); }
+      #s6 .g1 { width: 1300px; height: 1300px; left: 50%; top: 44%; transform: translate(-50%, -50%);
+        background: radial-gradient(circle, rgba(247, 37, 133, 0.5), transparent 58%); }
+      #s6 .g2 { width: 900px; height: 900px; left: 50%; top: 44%; transform: translate(-50%, -50%);
+        background: radial-gradient(circle, rgba(72, 191, 227, 0.4), transparent 60%); }
+      #s6 .wrap { align-items: center; text-align: center; padding-bottom: 90px; }
+      #s6 .word { font-size: 172px; }
+      #s6 .word .dot { color: var(--yellow); }
+      #s6 .tag { font-family: "Bebas Neue", sans-serif; font-size: 96px; color: var(--lime); margin-top: 10px; }
+      #s6 .stack {
+        font-family: "IBM Plex Mono", monospace; font-size: 28px; letter-spacing: 0.22em;
+        color: var(--cyan); margin-top: 34px;
+      }
+      #s6 .url {
+        font-family: "IBM Plex Mono", monospace; font-size: 34px; letter-spacing: 0.24em;
+        color: var(--ink); margin-top: 16px;
+      }
+      #s6 .url b { color: var(--magenta); }
+    </style>
+    <style>
+      /* ===================== PORTRAIT 1080x1920 OVERRIDES ===================== */
+      .wrap { padding: 250px 60px 230px; }
+
+      #status { font-size: 16px; letter-spacing: 0.18em; padding: 0 32px; top: 40px; }
+      #ticker { height: 58px; }
+      #ticker .tick { font-size: 22px; }
+
+      /* SCENE 1 */
+      #s1 .g1 { width: 900px; height: 900px; left: -200px; top: 80px; }
+      #s1 .g2 { width: 900px; height: 900px; right: -240px; bottom: 120px; }
+      #s1 .eqL { left: 56px; bottom: 360px; height: 220px; }
+      #s1 .eqR { right: 56px; top: 340px; height: 200px; }
+      #s1 .kick { font-size: 26px; letter-spacing: 0.42em; margin-bottom: 26px; }
+      #s1 .hero { font-size: 158px; line-height: 0.9; }
+      #s1 .hero .dot { display: block; }
+      #s1 .sub { font-size: 27px; max-width: 900px; margin-top: 40px; line-height: 1.4; }
+
+      /* SCENE 2 */
+      #s2 .forget { font-size: 96px; }
+      #s2 .golive { font-size: 168px; margin-top: 14px; }
+      #s2 .flow { flex-direction: column; align-items: flex-start; gap: 14px; margin-top: 56px; font-size: 92px; }
+      #s2 .flow .sep { display: none; }
+      #s2 .flow .w1, #s2 .flow .w2, #s2 .flow .w3 { line-height: 0.96; }
+
+      /* SCENE 3 */
+      #s3 .eqB { bottom: 110px; height: 180px; }
+      #s3 .htag { font-size: 24px; letter-spacing: 0.3em; }
+      #s3 .htitle { font-size: 118px; margin-bottom: 44px; }
+      #s3 .algos { gap: 22px; }
+      #s3 .algo { font-size: 70px; gap: 24px; }
+      #s3 .algo .n { font-size: 30px; width: 56px; }
+
+      /* SCENE 4 */
+      #s4 .live { font-size: 30px; margin-bottom: 40px; }
+      #s4 .big { font-size: 124px; max-width: 940px; line-height: 0.9; }
+      #s4 .stats { flex-direction: column; gap: 50px; margin-top: 64px; width: 100%; }
+      #s4 .stat { width: 100%; }
+      #s4 .stat .v { font-size: 128px; }
+      #s4 .stat .l { font-size: 26px; margin-top: 10px; }
+      #s4 .stat .sl i { width: 26px; height: 26px; }
+
+      /* SCENE 5 */
+      #s5 .htitle { font-size: 108px; }
+      #s5 .hsub { font-size: 26px; margin-bottom: 50px; }
+      #s5 .bars { gap: 30px; }
+      #s5 .bar { grid-template-columns: 1fr auto; gap: 8px 20px; }
+      #s5 .bar .tier { font-size: 50px; }
+      #s5 .track { height: 46px; grid-column: 1 / -1; }
+      #s5 .bar .m { font-size: 58px; text-align: right; }
+
+      /* SCENE 6 */
+      #s6 .word { font-size: 158px; line-height: 0.9; }
+      #s6 .word .dot { display: block; }
+      #s6 .tag { font-size: 78px; max-width: 920px; line-height: 0.96; margin-top: 28px; }
+      #s6 .stack { font-size: 26px; margin-top: 44px; }
+      #s6 .url { font-size: 30px; margin-top: 18px; }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="31"
+      data-width="1080"
+      data-height="1920"
+    >
+      <!-- ===== SCENE 1 — HOOK ===== -->
+      <div id="s1" class="scene" data-layout-allow-overflow>
+        <div class="glow g1"></div>
+        <div class="glow g2"></div>
+        <div class="eq eqL"><span style="height:40%;background:var(--magenta)"></span><span style="height:75%;background:var(--cyan)"></span><span style="height:55%;background:var(--lime)"></span><span style="height:90%;background:var(--yellow)"></span><span style="height:60%;background:var(--pink)"></span><span style="height:80%;background:var(--cyan)"></span></div>
+        <div class="eq eqR"><span style="height:70%;background:var(--cyan)"></span><span style="height:45%;background:var(--lime)"></span><span style="height:85%;background:var(--magenta)"></span><span style="height:55%;background:var(--yellow)"></span><span style="height:95%;background:var(--pink)"></span></div>
+        <div class="wrap">
+          <div class="kick">LIVE WEATHER // TEZOS NFT</div>
+          <h1 class="hero display chroma">WEATHERNFT<span class="dot">.LIVE</span></h1>
+          <div class="sub">&gt;&gt; HUNT THE STORM. CAPTURE THE MOMENT. MINT IT.</div>
+        </div>
+      </div>
+
+      <!-- ===== SCENE 2 — SHIFT ===== -->
+      <div id="s2" class="scene" data-layout-allow-overflow>
+        <div class="glow g1"></div>
+        <div class="wrap">
+          <div class="forget display">FORGET STATIC<span class="x"></span></div>
+          <div class="golive display chroma">GO LIVE.</div>
+          <div class="flow">
+            <span class="w1">STREAM</span><span class="sep">→</span><span class="w2">DETECT</span><span class="sep">→</span><span class="w3">CAPTURE</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== SCENE 3 — ALGORITHMS ===== -->
+      <div id="s3" class="scene" data-layout-allow-overflow>
+        <div class="glow g1"></div>
+        <div class="eq eqB"><span style="height:50%;background:var(--magenta)"></span><span style="height:80%;background:var(--cyan)"></span><span style="height:35%;background:var(--lime)"></span><span style="height:95%;background:var(--yellow)"></span><span style="height:60%;background:var(--pink)"></span><span style="height:75%;background:var(--cyan)"></span><span style="height:45%;background:var(--magenta)"></span><span style="height:85%;background:var(--lime)"></span></div>
+        <div class="wrap">
+          <div class="htag">// 5 ALGORITHMS · SCANNING 24/7</div>
+          <div class="htitle display"><b>5</b> AI HUNTERS</div>
+          <div class="algos">
+            <div class="algo"><span class="n mono">01</span><span class="t">STORM HUNTER</span></div>
+            <div class="algo"><span class="n mono">02</span><span class="t">AURORA PREDICTOR</span></div>
+            <div class="algo"><span class="n mono">03</span><span class="t">MICRO CLIMATE</span></div>
+            <div class="algo"><span class="n mono">04</span><span class="t">EXTREME WEATHER</span></div>
+            <div class="algo"><span class="n mono">05</span><span class="t">TEMP ANOMALY</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== SCENE 4 — CAPTURE / FOMO ===== -->
+      <div id="s4" class="scene" data-layout-allow-overflow>
+        <div class="glow g1"></div>
+        <div class="wrap">
+          <div class="live mono">● LIVE EVENT ●</div>
+          <div class="big display chroma">EVENTS <em>VANISH</em> FAST</div>
+          <div class="stats">
+            <div class="stat"><span class="v"><span id="win">120</span>′</span><span class="l">WINDOW · 15–120 MIN</span></div>
+            <div class="stat"><span class="v cy">1–20</span><span class="l">SLOTS PER EVENT</span><span class="sl"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i></span></div>
+            <div class="stat"><span class="v">FOMO</span><span class="l">REAL-TIME · WSS</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== SCENE 5 — RARITY ===== -->
+      <div id="s5" class="scene" data-layout-allow-overflow>
+        <div class="glow g1"></div>
+        <div class="wrap">
+          <div class="htitle display">RARITY = <b>VALUE</b></div>
+          <div class="hsub mono">BASE <b>0.5 XTZ</b> × UP TO <b>30×</b></div>
+          <div class="bars">
+            <div class="bar" data-mult="1" data-w="14" data-c="#48bfe3"><span class="tier" style="color:#48bfe3">COMMON</span><div class="track"><div class="fill"></div></div><span class="m">1×</span></div>
+            <div class="bar" data-mult="2" data-w="22" data-c="#6fffe9"><span class="tier" style="color:#6fffe9">UNCOMMON</span><div class="track"><div class="fill"></div></div><span class="m">2×</span></div>
+            <div class="bar" data-mult="5" data-w="36" data-c="#e9ff70"><span class="tier" style="color:#e9ff70">RARE</span><div class="track"><div class="fill"></div></div><span class="m">5×</span></div>
+            <div class="bar" data-mult="10" data-w="56" data-c="#ff70a6"><span class="tier" style="color:#ff70a6">EPIC</span><div class="track"><div class="fill"></div></div><span class="m">10×</span></div>
+            <div class="bar" data-mult="30" data-w="100" data-c="#f72585"><span class="tier" style="color:#f72585">LEGENDARY</span><div class="track"><div class="fill"></div></div><span class="m">30×</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== SCENE 6 — CTA ===== -->
+      <div id="s6" class="scene" data-layout-allow-overflow>
+        <div class="glow g1"></div>
+        <div class="glow g2"></div>
+        <div class="wrap">
+          <h2 class="word display chroma">WEATHERNFT<span class="dot">.LIVE</span></h2>
+          <div class="tag display">HUNT THE SKY. OWN THE STORM.</div>
+          <div class="stack">TEZOS · FA2 · AI ART · IPFS · GUILDS</div>
+          <div class="url">weathernft.live · <b>GHOSTNET LIVE NOW</b></div>
+        </div>
+      </div>
+
+      <!-- ===== GLOBAL OVERLAYS ===== -->
+      <div id="beatglow"></div>
+      <div id="vignette"></div>
+      <div id="scanlines"></div>
+      <div id="status">
+        <span class="rec"><b></b>REC</span>
+        <span>WEATHERNFT_VJ_SET · GHOSTNET</span>
+      </div>
+      <div id="ticker" data-layout-allow-overflow>
+        <div class="tick">
+          <span>LIVE WEATHER<b>●</b>AI HUNT<b>●</b>STORM<b>●</b>AURORA<b>●</b>CAPTURE THE MOMENT<b>●</b>TEZOS NFT<b>●</b>FOMO<b>●</b></span>
+          <span>LIVE WEATHER<b>●</b>AI HUNT<b>●</b>STORM<b>●</b>AURORA<b>●</b>CAPTURE THE MOMENT<b>●</b>TEZOS NFT<b>●</b>FOMO<b>●</b></span>
+        </div>
+      </div>
+      <div id="flash"></div>
+
+      <!-- 120 BPM beat (separate audio track) -->
+      <audio id="track" src="beat.m4a" data-start="0" data-duration="31" data-track-index="9" data-volume="1"></audio>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      const BEAT = 0.5; // 120 BPM
+      const DUR = 31;
+
+      // counter (seekable)
+      function counter(el, end, at, dur, ease, fmt) {
+        el = typeof el === "string" ? document.querySelector(el) : el;
+        const o = { v: parseFloat(el.textContent) || 0 };
+        tl.to(o, { v: end, duration: dur, ease: ease, onUpdate() { el.textContent = fmt ? fmt(o.v) : Math.round(o.v); } }, at);
+      }
+      // hard glitch cut: jitter out, strobe, swap, blur-in
+      function cut(oldS, newS, T, tint) {
+        tl.to(oldS, { x: -22, skewX: -3, duration: 0.03, ease: "none" }, T);
+        tl.to(oldS, { x: 18, skewX: 4, duration: 0.03, ease: "none" }, T + 0.03);
+        tl.to(oldS, { x: -10, skewX: 0, duration: 0.03, ease: "none" }, T + 0.06);
+        tl.set("#flash", { backgroundColor: tint || "#ffffff", opacity: 0.9 }, T + 0.04);
+        tl.to("#flash", { opacity: 0, duration: 0.18, ease: "power2.out" }, T + 0.09);
+        tl.set(oldS, { opacity: 0, x: 0, skewX: 0 }, T + 0.11);
+        tl.fromTo(newS, { opacity: 0, scale: 1.08, filter: "blur(7px)" },
+          { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.22, ease: "power3.out" }, T + 0.08);
+      }
+      // beat pump scale on an element across [from,to]
+      function pump(sel, from, to, amp, dur) {
+        const cycles = Math.max(1, Math.round((to - from) / BEAT));
+        tl.to(sel, { scale: 1 + amp, duration: BEAT / 2, yoyo: true, repeat: cycles * 2 - 1, ease: "sine.inOut" }, from);
+      }
+
+      /* ===== GLOBAL (whole timeline) ===== */
+      // ticker scroll (seamless, finite)
+      tl.fromTo("#ticker .tick", { x: 0 }, { x: "-50%", duration: 8, ease: "none", repeat: Math.ceil(DUR / 8) }, 0);
+      // beat glow is driven by the audio sampler below (bass)
+      // scanline drift
+      tl.fromTo("#scanlines", { y: 0 }, { y: 8, duration: 0.5, ease: "none", repeat: Math.ceil(DUR / 0.5) }, 0);
+      // REC blink
+      tl.to("#status .rec b", { opacity: 0.15, duration: BEAT / 2, yoyo: true, repeat: Math.ceil(DUR / BEAT) * 2, ease: "steps(1)" }, 0);
+      // status flicker in
+      tl.fromTo("#status", { opacity: 0 }, { opacity: 1, duration: 0.3 }, 0.2);
+      tl.fromTo("#ticker", { y: 64 }, { y: 0, duration: 0.4, ease: "power3.out" }, 0.3);
+
+      /* ===== SCENE 1 (0 → 4.8) ===== */
+      tl.fromTo("#s1 .kick", { opacity: 0, letterSpacing: "1.2em" }, { opacity: 1, letterSpacing: "0.5em", duration: 0.4, ease: "power3.out" }, 0.2);
+      tl.fromTo("#s1 .hero", { opacity: 0, scale: 2.2, filter: "blur(12px)" }, { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.32, ease: "power4.out" }, 0.5);
+      tl.fromTo("#s1 .hero", { skewX: 8 }, { skewX: 0, duration: 0.2, ease: "back.out(3)" }, 0.5);
+      tl.fromTo("#s1 .hero .dot", { color: "#f6f4ff" }, { color: "#ffd23f", duration: 0.2 }, 0.85);
+      tl.fromTo("#s1 .sub", { opacity: 0, x: -40 }, { opacity: 1, x: 0, duration: 0.35, ease: "power3.out" }, 1.0);
+      // eq bars fade in; their height is audio-driven (sampler below)
+      tl.fromTo("#s1 .eq span", { opacity: 0 }, { opacity: 1, duration: 0.3, stagger: 0.04, ease: "power2.out" }, 0.6);
+      pump("#s1 .hero", 1.1, 4.7, 0.03, BEAT);
+      cut("#s1", "#s2", 4.8, "#48bfe3");
+
+      /* ===== SCENE 2 (4.8 → 9.1) ===== */
+      tl.fromTo("#s2 .forget", { opacity: 0, x: -60 }, { opacity: 1, x: 0, duration: 0.3, ease: "power3.out" }, 5.2);
+      tl.fromTo("#s2 .forget .x", { scaleX: 0 }, { scaleX: 1, duration: 0.25, ease: "power4.in" }, 5.55);
+      tl.fromTo("#s2 .golive", { opacity: 0, scale: 2.4, filter: "blur(10px)" }, { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.3, ease: "power4.out" }, 5.9);
+      // STREAM / DETECT / CAPTURE slam on the beat
+      tl.fromTo("#s2 .flow .w1", { opacity: 0, scale: 2, y: 20 }, { opacity: 1, scale: 1, y: 0, duration: 0.22, ease: "back.out(2)" }, 6.5);
+      tl.fromTo("#s2 .flow .w2", { opacity: 0, scale: 2, y: 20 }, { opacity: 1, scale: 1, y: 0, duration: 0.22, ease: "back.out(2)" }, 7.0);
+      tl.fromTo("#s2 .flow .w3", { opacity: 0, scale: 2, y: 20 }, { opacity: 1, scale: 1, y: 0, duration: 0.22, ease: "back.out(2)" }, 7.5);
+      tl.fromTo("#s2 .flow .sep", { opacity: 0 }, { opacity: 0.6, duration: 0.2, stagger: 0.5 }, 6.75);
+      pump("#s2 .golive", 6.3, 9.0, 0.035, BEAT);
+      cut("#s2", "#s3", 9.1, "#f72585");
+
+      /* ===== SCENE 3 (9.1 → 14.4) ===== */
+      tl.fromTo("#s3 .htag", { opacity: 0 }, { opacity: 1, duration: 0.25 }, 9.5);
+      tl.fromTo("#s3 .htitle", { opacity: 0, x: -50, skewX: 6 }, { opacity: 1, x: 0, skewX: 0, duration: 0.3, ease: "power3.out" }, 9.6);
+      tl.fromTo("#s3 .htitle b", { scale: 0, color: "#f6f4ff" }, { scale: 1, color: "#ffd23f", duration: 0.3, ease: "back.out(3)" }, 9.8);
+      // rapid-fire algorithm slams on half-beats
+      tl.fromTo("#s3 .algo", { opacity: 0, x: -80, scale: 1.4 }, { opacity: 1, x: 0, scale: 1, duration: 0.22, stagger: 0.26, ease: "power4.out" }, 10.2);
+      // eq react (height audio-driven via sampler)
+      tl.fromTo("#s3 .eqB span", { opacity: 0 }, { opacity: 1, duration: 0.3, stagger: 0.04 }, 10.0);
+      cut("#s3", "#s4", 14.4, "#e9ff70");
+
+      /* ===== SCENE 4 (14.4 → 19.2) ===== */
+      tl.fromTo("#s4 .live", { opacity: 0, scale: 0.5 }, { opacity: 1, scale: 1, duration: 0.25, ease: "back.out(3)" }, 14.8);
+      tl.fromTo("#s4 .big", { opacity: 0, scale: 1.8, filter: "blur(10px)" }, { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.3, ease: "power4.out" }, 15.0);
+      tl.fromTo("#s4 .stat", { opacity: 0, y: 60 }, { opacity: 1, y: 0, duration: 0.3, stagger: 0.18, ease: "power3.out" }, 15.4);
+      counter("#win", 15, 15.5, 0.8, "power2.in", (v) => Math.round(v));
+      tl.fromTo("#s4 .stat .sl i.on", { scale: 0 }, { scale: 1, duration: 0.18, stagger: 0.06, ease: "back.out(2)" }, 15.8);
+      // FOMO / live strobe pulse
+      tl.to("#s4 .live", { opacity: 0.4, duration: BEAT / 2, yoyo: true, repeat: 8, ease: "steps(1)" }, 16.0);
+      pump("#s4 .big", 15.4, 19.1, 0.04, BEAT);
+      cut("#s4", "#s5", 19.2, "#9d4edd");
+
+      /* ===== SCENE 5 (19.2 → 24.2) ===== */
+      tl.fromTo("#s5 .htitle", { opacity: 0, x: -50 }, { opacity: 1, x: 0, duration: 0.3, ease: "power3.out" }, 19.6);
+      tl.fromTo("#s5 .htitle b", { color: "#f6f4ff" }, { color: "#ffd23f", duration: 0.3 }, 19.9);
+      tl.fromTo("#s5 .hsub", { opacity: 0 }, { opacity: 1, duration: 0.25 }, 19.9);
+      tl.fromTo("#s5 .bar", { opacity: 0, x: -60 }, { opacity: 1, x: 0, duration: 0.25, stagger: 0.12, ease: "power3.out" }, 20.1);
+      document.querySelectorAll("#s5 .bar").forEach((bar, i) => {
+        const fill = bar.querySelector(".fill");
+        const c = bar.dataset.c;
+        fill.style.width = bar.dataset.w + "%";
+        fill.style.background = "linear-gradient(90deg, " + c + "55, " + c + ")";
+        fill.style.boxShadow = "0 0 22px " + c + "aa";
+        const at = 20.3 + i * 0.12;
+        tl.fromTo(fill, { scaleX: 0 }, { scaleX: 1, duration: 0.4, ease: "power4.out" }, at);
+        counter(bar.querySelector(".m"), +bar.dataset.mult, at, 0.4, "power2.out", (v) => Math.round(v) + "×");
+      });
+      // legendary strobe
+      tl.to("#s5 .bar:last-child .fill", { filter: "brightness(1.5)", duration: BEAT / 2, yoyo: true, repeat: 7, ease: "steps(1)" }, 21.4);
+      cut("#s5", "#s6", 24.2, "#ffffff");
+
+      /* ===== SCENE 6 (24.2 → 31) ===== */
+      tl.fromTo("#s6 .word", { opacity: 0, scale: 2.2, filter: "blur(12px)" }, { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.32, ease: "power4.out" }, 24.6);
+      tl.fromTo("#s6 .word", { skewX: 7 }, { skewX: 0, duration: 0.2, ease: "back.out(3)" }, 24.6);
+      tl.fromTo("#s6 .word .dot", { color: "#f6f4ff" }, { color: "#ffd23f", duration: 0.2 }, 24.95);
+      tl.fromTo("#s6 .tag", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.3, ease: "power3.out" }, 25.0);
+      tl.fromTo("#s6 .stack", { opacity: 0 }, { opacity: 1, duration: 0.3 }, 25.4);
+      tl.fromTo("#s6 .url", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.25, ease: "power2.out" }, 25.7);
+      pump("#s6 .word", 25.2, 30.5, 0.045, BEAT);
+      tl.to("#s6 .url b", { opacity: 0.3, duration: BEAT / 2, yoyo: true, repeat: 10, ease: "steps(1)" }, 26.0);
+      // final strobe burst
+      tl.to("#s6 .tag", { color: "#48bfe3", duration: BEAT, yoyo: true, repeat: 4, ease: "none" }, 26.0);
+
+      /* ===== AUDIO-REACTIVE SAMPLER ===== */
+      // Drives the beat-glow (bass) and every equalizer bar (spread of bands)
+      // from the real 120 BPM track, sampled once per frame (seekable).
+      (function () {
+        var A = window.AUDIO_DATA;
+        if (!A) return;
+        var glow = document.getElementById("beatglow");
+        var bars = Array.prototype.slice.call(document.querySelectorAll(".eq span"));
+        var nb = A.bands[0].length;
+        gsap.set(bars, { transformOrigin: "bottom" });
+        for (var f = 0; f < A.totalFrames; f++) {
+          tl.call(
+            (function (b) {
+              return function () {
+                var bass = (b[0] + b[1] + b[2]) / 3;
+                gsap.set(glow, { scale: 1 + bass * 0.6, opacity: 0.28 + bass * 0.62 });
+                for (var i = 0; i < bars.length; i++) {
+                  var band = b[(i * 3) % nb];
+                  gsap.set(bars[i], { scaleY: 0.12 + band * 1.05 });
+                }
+              };
+            })(A.bands[f]),
+            null,
+            f / A.fps,
+          );
+        }
+      })();
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>
